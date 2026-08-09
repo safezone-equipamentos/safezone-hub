@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SafeZone HUB</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2L4 7v9c0 7 5.4 13.5 12 15 6.6-1.5 12-8 12-15V7L16 2z' fill='%2379B913'/%3E%3Cpath d='M11 16l3.5 3.5L21 13' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<!-- Favicon real do HUB. Suba o arquivo pro repositório GitHub "safezone-hub", direto na
+     RAIZ do repositório (mesmo nível do index.html — não dentro de imagens/), com o nome
+     exato "favicon.ico". Colocar na raiz garante que funcione tanto pela tag abaixo quanto
+     pelo pedido automático que os navegadores fazem em /favicon.ico por padrão. Enquanto o
+     arquivo não existir lá, o navegador cai silenciosamente pro ícone padrão — não trava nada. -->
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -415,7 +420,22 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
   #clientes-kpis-grid, #usuarios-kpis-grid{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
     max-width:none!important;
+    gap:8px!important;
   }
+  /* Cards de filtro/pesquisa (.lead-kpi) um pouco menores no mobile */
+  .lead-kpi{padding:6px 8px}
+  .lead-kpi-val{font-size:14px}
+  .lead-kpi-label{font-size:8px}
+  /* Topbar: sem isso, o botão Sair fica cortado pra fora da tela (overflow horizontal) e o
+     ícone de ajuda (?) fica espremido — reduzindo gaps e paddings dos controles da direita
+     sobra espaço suficiente pra tudo caber. */
+  .topbar{gap:6px}
+  .topbar-right{gap:6px}
+  .topbar-logo{font-size:14px}
+  .topbar-role{padding:2px 6px;font-size:9px}
+  .btn-logout{padding:4px 8px;font-size:11px}
+  .tb-notif-btn{padding:4px}
+  #btn-tour-help{width:26px;height:26px;font-size:12px}
 }
 /* ── MOBILE GESTOR: navegação e layout (rodada 381) ──
    O layout do Gestor (sidebar fixa + conteúdo com scroll interno, altura travada em 100vh)
@@ -681,7 +701,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 382</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 384</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">

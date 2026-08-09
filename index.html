@@ -81,6 +81,7 @@ html{scrollbar-gutter:stable;overflow-x:hidden;height:100%}body{font-family:'Mon
 .nav-tab{font-size:12px;font-weight:600;color:var(--gray-500);padding:12px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:4px}
 .nav-tab.active{color:var(--green);border-bottom-color:var(--green)}
 
+#btn-menu-mobile{display:none}
 .screen{display:none}
 .screen.active{display:block;width:100%;box-sizing:border-box}
 .card{background:#fff;border-radius:12px;border:1px solid var(--gray-200);margin-bottom:16px;overflow:hidden}
@@ -405,9 +406,35 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
   .chk-bloco-body{padding:0 14px 14px}
   .btn-enviar-lev{font-size:14px;padding:14px}
   .resumo-wrap{padding:12px}
-  #sidebar-gestor{display:none}
   .dash-grid{grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr)}
   .dash-row{grid-template-columns:1fr}
+}
+/* ── MOBILE GESTOR: navegação e layout (rodada 381) ──
+   O layout do Gestor (sidebar fixa + conteúdo com scroll interno, altura travada em 100vh)
+   foi desenhado só pro desktop. Em telas ≤640px substituímos por: (1) rolagem natural do
+   documento — igual o Técnico já usa — em vez de altura fixa com overflow:hidden, o que
+   também corrige o comportamento instável da barra de endereços do navegador mobile;
+   (2) a sidebar vira um menu "gaveta" (drawer) acionado pelo botão ☰ na topbar, em vez de
+   simplesmente sumir sem substituto; (3) o dash-grid da tela inicial deixa de depender de
+   flex:1 (que dependia da altura travada) e passa a ter altura natural pelo conteúdo. */
+@media(max-width:640px){
+  #btn-menu-mobile{display:inline-flex!important;align-items:center;justify-content:center}
+  #screen-app{height:auto!important;min-height:100vh!important;overflow:visible!important}
+  #gestor-shell{height:auto!important;overflow:visible!important;display:block!important}
+  #gestor-content{height:auto!important;overflow:visible!important;width:100%!important}
+  .dash-grid{flex:none!important;grid-template-rows:none!important;grid-auto-rows:auto!important}
+  /* Sidebar como drawer sobreposto, fora do fluxo normal */
+  #sidebar-gestor{
+    display:block!important;position:fixed!important;top:48px;left:0;bottom:0;
+    width:80vw!important;max-width:280px!important;height:calc(100vh - 48px)!important;
+    z-index:500;transform:translateX(-100%);transition:transform .25s ease;
+    box-shadow:2px 0 18px rgba(0,0,0,.22);
+  }
+  #sidebar-gestor.sb-aberta{transform:translateX(0)}
+  #sidebar-gestor .sidebar-logo-wrap{display:block!important}
+  #sidebar-gestor .sidebar-item span:not(.sidebar-icon):not(.notif-badge){display:inline!important}
+  #sidebar-gestor [style*="font-size:10px"]{display:block!important}
+  #sidebar-gestor .sidebar-item{justify-content:flex-start!important;padding:10px 16px!important}
 }
 /* ── Gerador de Propostas ── */
 /* Altura da TELA baseada só em constantes reais (topbar 48px + padding vertical do
@@ -519,6 +546,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
     🧪 AMBIENTE DE TESTE (staging) — dados aqui não afetam o sistema real
   </div>
   <div class="topbar">
+    <button id="btn-menu-mobile" onclick="toggleMenuMobileGestor()" style="background:none;border:1px solid var(--gray-200);color:var(--gray-700);border-radius:8px;width:34px;height:34px;font-size:16px;line-height:1;cursor:pointer;margin-right:6px;flex-shrink:0" title="Menu" aria-label="Abrir menu">☰</button>
     <div class="topbar-logo">SafeZone<span>HUB</span></div>
     <div class="topbar-badge" id="topbar-badge"></div>
     <div class="topbar-right">
@@ -537,7 +565,8 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
   </div>
   <!-- SIDEBAR GESTOR -->
   <div id="nav-gestor" style="display:none;flex:1;overflow:hidden">
-    <div style="display:flex;height:calc(100vh - 48px);overflow:hidden">
+    <div id="sb-backdrop" onclick="toggleMenuMobileGestor(false)" style="display:none;position:fixed;inset:48px 0 0 0;background:rgba(0,0,0,.4);z-index:499"></div>
+    <div id="gestor-shell" style="display:flex;height:calc(100vh - 48px);overflow:hidden">
       <nav id="sidebar-gestor" style="width:220px;background:#fff;border-right:1px solid var(--gray-200);flex-shrink:0;padding:8px 0;overflow-y:auto;height:100%;box-sizing:border-box">
         <!-- Logo SafeZone no topo da sidebar -->
         <div class="sidebar-logo-wrap" style="padding:10px 20px;border-bottom:1px solid var(--gray-100);margin-bottom:4px;text-align:center">
@@ -640,7 +669,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 380</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 381</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -2690,6 +2719,25 @@ function _cancelarOrcamentoPendente(orcId, leadId){
 }
 
 function fecharModal(id){ document.getElementById(id).classList.remove('open'); }
+// ── Menu mobile do Gestor (drawer) — rodada 381 ──
+// Abre/fecha a sidebar como gaveta sobreposta no mobile. Chamado pelo botão ☰ da topbar,
+// pelo backdrop (clique fora) e automaticamente pelo irPara() ao navegar.
+function toggleMenuMobileGestor(forcarAbrir){
+  var sb = document.getElementById('sidebar-gestor');
+  var backdrop = document.getElementById('sb-backdrop');
+  if(!sb) return;
+  var abrir = (typeof forcarAbrir === 'boolean') ? forcarAbrir : !sb.classList.contains('sb-aberta');
+  sb.classList.toggle('sb-aberta', abrir);
+  if(backdrop) backdrop.style.display = abrir ? 'block' : 'none';
+  // Trava o scroll do body por trás da gaveta aberta, só no mobile.
+  document.body.style.overflow = (abrir && window.innerWidth <= 640) ? 'hidden' : '';
+}
+// Se a tela crescer além de 640px com a gaveta aberta (ex: girar o celular, ou redimensionar
+// janela de desktop), fecha e destrava o scroll — evita ficar "preso" num estado mobile.
+window.addEventListener('resize', function(){
+  if(window.innerWidth > 640) toggleMenuMobileGestor(false);
+});
+
 function irPara(tela){
   var telaAnteriorEl = document.querySelector('.screen.active');
   var telaAnteriorId = telaAnteriorEl ? telaAnteriorEl.id.replace('screen-','') : null;
@@ -2705,6 +2753,9 @@ function irPara(tela){
   }
   if(perfilAtual === 'gestor'){
     document.querySelectorAll('.sidebar-item').forEach(function(t){ t.classList.toggle('active', t.dataset.tela === tela || (tela === 'levantamentos' && t.dataset.tela === 'orcamentos')); });
+    // No mobile a sidebar é um drawer sobreposto — ao navegar pra qualquer tela, fecha
+    // automaticamente (sem isso o usuário teria que fechar manualmente toda vez).
+    if(window.innerWidth <= 640) toggleMenuMobileGestor(false);
     if(tela === 'dashboard') atualizarDashboard();
     if(tela === 'leads') renderLeads();
     if(tela === 'tasks') renderTasks();
@@ -2844,6 +2895,16 @@ auth.onAuthStateChanged(function(user){
       // (barra de rolagem na borda real da página), sem forçar altura de viewport nem
       // esconder overflow, que só fazem sentido pro layout com sidebar do gestor.
       document.getElementById('screen-app').style.cssText = 'display:flex;flex-direction:column;width:100%;min-height:100vh';
+    }
+    // Botão ☰ do menu mobile só faz sentido pro Gestor (o Técnico não usa #sidebar-gestor).
+    // Pro Gestor não mexemos em nada: fica escondido (inline) no desktop e o
+    // @media(max-width:640px) com !important assume sozinho a exibição no mobile.
+    // Pro Técnico, forçamos display:none com !important pra sobrepor até o !important do
+    // media query mobile (inline !important vence !important de stylesheet).
+    var btnMenuMobile = document.getElementById('btn-menu-mobile');
+    if(btnMenuMobile){
+      if(perfilAtual === 'gestor') btnMenuMobile.style.removeProperty('display');
+      else btnMenuMobile.style.setProperty('display', 'none', 'important');
     }
     document.getElementById('topbar-user').textContent = (usuarioCadastroAtual && usuarioCadastroAtual.nome)
       ? (usuarioCadastroAtual.nome + (usuarioCadastroAtual.empresa ? ' - ' + usuarioCadastroAtual.empresa : ''))

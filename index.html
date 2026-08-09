@@ -408,6 +408,14 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
   .resumo-wrap{padding:12px}
   .dash-grid{grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr)}
   .dash-row{grid-template-columns:1fr}
+  /* Todos os grids de KPI/filtro usam alguma variação de repeat(N,1fr) via style inline
+     (N vai de 2 a 7 dependendo da tela) — sem !important aqui o inline sempre vence e a
+     grade estoura a largura da tela no mobile. */
+  .leads-kpis, #rel-leads-kpis, #rel-leads-kpis2, #rel-op-kpis, #rel-prop-kpis,
+  #clientes-kpis-grid, #usuarios-kpis-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    max-width:none!important;
+  }
 }
 /* ── MOBILE GESTOR: navegação e layout (rodada 381) ──
    O layout do Gestor (sidebar fixa + conteúdo com scroll interno, altura travada em 100vh)
@@ -423,6 +431,10 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
   #gestor-shell{height:auto!important;overflow:visible!important;display:block!important}
   #gestor-content{height:auto!important;overflow:visible!important;width:100%!important}
   .dash-grid{flex:none!important;grid-template-rows:none!important;grid-auto-rows:auto!important}
+  /* O botão "+ Novo Lead" fica ao lado do dash-grid num flex-row — sem isso ele fica
+     espremido/cortado na borda direita da tela no mobile (achatado a ~0px de largura). */
+  .dash-cards-wrap{flex-direction:column!important}
+  .dash-btn-novo-lead{width:100%!important;flex-direction:row!important;padding:12px!important}
   /* Sidebar como drawer sobreposto, fora do fluxo normal */
   #sidebar-gestor{
     display:block!important;position:fixed!important;top:48px;left:0;bottom:0;
@@ -669,7 +681,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 381</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 382</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -680,7 +692,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           <div style="font-size:12px;color:var(--gray-500);margin-top:2px" id="dash-data-hora"></div>
         </div>
       </div>
-      <div style="display:flex;gap:14px;align-items:stretch;margin-bottom:24px">
+      <div class="dash-cards-wrap" style="display:flex;gap:14px;align-items:stretch;margin-bottom:24px">
         <div class="dash-grid" id="dash-cards">
           <div class="dash-card" onclick="irPara('leads')" style="border-color:#dbeafe;background:#eff6ff">
             <div class="dash-card-top">
@@ -738,7 +750,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <!-- Atalho rápido de cadastro (o resto já está disponível no menu lateral) -->
-        <button onclick="irPara('leads');setTimeout(abrirModalNovoLead,200)" style="flex-shrink:0;width:130px;background:#7c3aed;border:none;color:#fff;font-size:12px;font-weight:800;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 10px rgba(124,58,237,.35);transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 5px 14px rgba(124,58,237,.45)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 3px 10px rgba(124,58,237,.35)'">
+        <button class="dash-btn-novo-lead" onclick="irPara('leads');setTimeout(abrirModalNovoLead,200)" style="flex-shrink:0;width:130px;background:#7c3aed;border:none;color:#fff;font-size:12px;font-weight:800;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 10px rgba(124,58,237,.35);transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 5px 14px rgba(124,58,237,.45)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 3px 10px rgba(124,58,237,.35)'">
           <span style="font-size:20px">🎯</span>
           <span>+ Novo Lead</span>
         </button>
@@ -1335,7 +1347,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
       </div>
     </div>
     <div class="screen" id="screen-clientes">
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px;max-width:280px">
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px;max-width:280px" id="clientes-kpis-grid">
         <div class="lead-kpi"><div class="lead-kpi-val" id="kpi-clientes-total">0</div><div class="lead-kpi-label">Total</div></div>
         <div class="lead-kpi"><div class="lead-kpi-val" id="kpi-clientes-novos-mes">0</div><div class="lead-kpi-label">Novos no mês</div></div>
       </div>
@@ -1426,7 +1438,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
       <div class="card">
         <div class="card-header"><div><div class="card-title">Usuários</div><div style="font-size:11px;color:var(--gray-500);margin-top:2px">Gestores e técnicos com acesso ao sistema</div></div><div class="card-actions"><button class="btn btn-primary" id="btn-novo-tec" onclick="abrirModalTecnico()">+ Novo Usuário</button></div></div>
         <div class="card-body">
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;max-width:520px">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;max-width:520px" id="usuarios-kpis-grid">
             <div class="lead-kpi"><div class="lead-kpi-val" id="kpi-usuarios-total">0</div><div class="lead-kpi-label">Total</div></div>
             <div class="lead-kpi"><div class="lead-kpi-val" id="kpi-usuarios-tecnicos">0</div><div class="lead-kpi-label">Técnicos</div></div>
             <div class="lead-kpi"><div class="lead-kpi-val" id="kpi-usuarios-gestores">0</div><div class="lead-kpi-label">Gestores</div></div>

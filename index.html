@@ -26,8 +26,8 @@ html{scrollbar-gutter:stable;overflow-x:hidden;height:100%}body{font-family:'Mon
 .auth-logo-text{font-size:23px;font-weight:800;color:#e7ebe4;letter-spacing:-0.3px;text-align:center;margin-bottom:2px}
 .auth-logo-text span{color:var(--green);text-shadow:0 0 18px rgba(121,185,19,.65)}
 .auth-logo-sub{font-family:'Courier New',monospace;font-size:10.5px;color:#6b8a55;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;text-align:center;margin-bottom:8px}
-.auth-boot-line{font-family:'Courier New',monospace;font-size:11px;color:var(--green);text-align:center;margin-bottom:26px;opacity:.85}
-.auth-boot-line::after{content:'_';margin-left:2px;animation:auth-blink 1s step-end infinite}
+.auth-boot-line{font-family:'Courier New',monospace;font-size:11px;color:var(--green);text-align:center;margin-bottom:26px;opacity:.85;min-height:14px}
+.auth-boot-cursor{display:inline-block;width:6px;height:12px;background:var(--green);margin-left:2px;vertical-align:middle;animation:auth-blink 1s step-end infinite}
 @keyframes auth-blink{50%{opacity:0}}
 .auth-label{font-family:'Courier New',monospace;font-size:10px;font-weight:700;color:#7a8a72;display:block;margin-bottom:5px;margin-top:16px;text-transform:uppercase;letter-spacing:1px}
 .auth-input{width:100%;height:42px;background:rgba(255,255,255,.03);border:1px solid rgba(121,185,19,.22);border-radius:8px;padding:0 12px;font-size:13px;font-family:'Montserrat',sans-serif;outline:none;transition:border .15s,box-shadow .15s;color:#e7ebe4}
@@ -479,14 +479,14 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
       <div id="badge-staging-login" style="display:none;background:#f59e0b;color:#000;text-align:center;font-size:11px;font-weight:800;padding:4px 8px;border-radius:6px;margin-bottom:12px;letter-spacing:.5px">🧪 AMBIENTE DE TESTE</div>
       <div class="auth-logo-text">SafeZone <span>HUB</span></div>
       <div class="auth-logo-sub">// conexões inteligentes</div>
-      <div class="auth-boot-line">&gt; sistema pronto</div>
+      <div class="auth-boot-line">&gt; <span id="auth-boot-text"></span><span class="auth-boot-cursor"></span></div>
       <label class="auth-label">E-mail</label>
       <input type="email" class="auth-input" id="auth-email" placeholder="seu@email.com.br">
       <label class="auth-label">Senha</label>
       <input type="password" class="auth-input" id="auth-senha" placeholder="••••••••">
       <button class="auth-btn" id="btn-login" onclick="fazerLogin()">Entrar</button>
       <div class="auth-error" id="auth-error"></div>
-      <div class="auth-ia-badge"><img src="imagens/kstor-ia.png" alt="" style="height:38px;width:auto" onerror="this.style.display='none'"> gestão com inteligência artificial</div>
+      <div class="auth-ia-badge"><img src="imagens/kstor-ia.png" alt="" style="height:38px;width:auto" onerror="this.style.display='none'"> Gestão com Inteligência Artificial</div>
     </div>
   </div>
 </div>
@@ -618,7 +618,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 376</div>
+        <div style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 377</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -2381,7 +2381,31 @@ document.addEventListener('DOMContentLoaded', function(){
     var b = document.getElementById('badge-staging-login'); if(b) b.style.display = 'block';
     document.title = '🧪 ' + document.title;
   }
+  iniciarTerminalLogin();
 });
+// Efeito de digitação no "> ..." da tela de login — mesma lógica (timing e comportamento)
+// já usada na landing page (safezonesmart.com.br), pra manter a identidade visual consistente
+// entre os dois. Roda direto no carregamento da página, antes mesmo do login.
+function iniciarTerminalLogin(){
+  var linhas = ['sistema pronto','carregando leads','verificando tarefas','conferindo agenda','elaborando propostas'];
+  var el = document.getElementById('auth-boot-text');
+  if(!el) return;
+  var li = 0, ci = 0, apagando = false;
+  function tick(){
+    var atual = linhas[li];
+    if(!apagando){
+      ci++;
+      el.textContent = atual.slice(0, ci);
+      if(ci === atual.length){ apagando = true; setTimeout(tick, 1400); return; }
+    } else {
+      ci--;
+      el.textContent = atual.slice(0, ci);
+      if(ci === 0){ apagando = false; li = (li+1) % linhas.length; }
+    }
+    setTimeout(tick, apagando ? 22 : 38);
+  }
+  tick();
+}
 // ── Proxy de IA + Telegram (Google Apps Script) ──
 // NENHUMA chave/token de API fica aqui no HTML público — a chave do Gemini e o token do bot do
 // Telegram moraram aqui até 09/08/2026 e foram removidos (rodada 365) porque o HUB roda 100%

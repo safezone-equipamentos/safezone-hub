@@ -640,7 +640,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 379</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 380</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -2397,11 +2397,18 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 // Aviso visual — nunca deixa dúvida sobre qual banco está conectado. Roda antes de qualquer
 // outra coisa, então já aparece mesmo antes do login.
+const VERSAO_HUB = '1.0';
 document.addEventListener('DOMContentLoaded', function(){
   if(!AMBIENTE_PRODUCAO){
     var f = document.getElementById('faixa-staging'); if(f) f.style.display = 'block';
     var b = document.getElementById('badge-staging-login'); if(b) b.style.display = 'block';
     document.title = '🧪 ' + document.title;
+  } else {
+    // Em produção, o rodapé mostra só o número de versão — o "build DD/MM · rodada N" que fica
+    // no código-fonte (e continua atualizado a cada rodada) só aparece em staging, onde é
+    // realmente útil pra debugar junto. Não precisa apagar o texto de build do HTML — só troca
+    // visualmente aqui.
+    var rv = document.getElementById('rodape-versao'); if(rv) rv.textContent = 'v' + VERSAO_HUB;
   }
   iniciarTerminalLogin();
 });

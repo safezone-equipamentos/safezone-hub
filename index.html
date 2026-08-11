@@ -416,7 +416,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
   /* Todos os grids de KPI/filtro usam alguma variação de repeat(N,1fr) via style inline
      (N vai de 2 a 7 dependendo da tela) — sem !important aqui o inline sempre vence e a
      grade estoura a largura da tela no mobile. */
-  .leads-kpis, #rel-leads-kpis, #rel-leads-kpis2, #rel-op-kpis, #rel-prop-kpis,
+  .leads-kpis, #rel-leads-kpis, #rel-leads-kpis2, #rel-op-kpis, #rel-prop-kpis, #rel-fin-kpis,
   #clientes-kpis-grid, #usuarios-kpis-grid{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
     max-width:none!important;
@@ -467,6 +467,71 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
   #sidebar-gestor .sidebar-item span:not(.sidebar-icon):not(.notif-badge){display:inline!important}
   #sidebar-gestor [style*="font-size:10px"]{display:block!important}
   #sidebar-gestor .sidebar-item{justify-content:flex-start!important;padding:10px 16px!important}
+}
+/* ── Financeiro (Receitas/Despesas) ── */
+.fin-item{ display:flex; align-items:center; gap:10px; border:1px solid var(--gray-200); border-radius:8px; padding:10px 14px; margin-bottom:8px; }
+.fin-item-info{ flex:1; min-width:0; }
+.fin-item-titulo{ font-size:13px; font-weight:700; color:var(--gray-900); }
+.fin-item-sub{ font-size:11px; color:var(--gray-500); margin-top:2px; }
+.fin-item-valor{ font-size:13px; font-weight:700; white-space:nowrap; }
+.fin-badge{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:12px; white-space:nowrap; }
+.fin-badge-pdv{ background:var(--green-light); color:var(--green-dark); }
+.fin-badge-proposta{ background:#e6f1fb; color:#0c447c; }
+.fin-badge-manual{ background:var(--gray-100); color:var(--gray-500); }
+.fin-badge-pago{ background:#ecfdf5; color:#047857; }
+/* ── PDV — mobile-first de propósito (uso planejado em tablet no balcão) ──
+   Base = empilhado (catálogo em cima, carrinho embaixo), como numa tela estreita.
+   Lado a lado só a partir de 900px, quando sobra largura de verdade. */
+.pdv-layout{ display:flex; flex-direction:column; gap:14px; }
+.pdv-col-catalogo{ background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:14px; }
+.pdv-col-carrinho{ background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:14px; display:flex; flex-direction:column; }
+.pdv-busca-wrap{ display:flex; align-items:center; gap:8px; border:1px solid var(--gray-200); border-radius:8px; padding:0 12px; height:44px; margin-bottom:12px; }
+.pdv-busca-icon{ font-style:normal; opacity:.5; font-size:15px; }
+.pdv-busca-input{ flex:1; border:none; outline:none; font-size:14px; height:100%; font-family:inherit; color:var(--gray-900); }
+.pdv-catalogo-lista{ display:flex; flex-direction:column; gap:8px; max-height:none; }
+.pdv-add-form{ display:flex; flex-direction:column; gap:4px; }
+.pdv-add-form-titulo{ font-size:14px; font-weight:800; color:var(--gray-900); margin-bottom:6px; }
+.pdv-add-form-label{ font-size:11px; font-weight:700; color:var(--gray-500); text-transform:uppercase; letter-spacing:.4px; margin-top:8px; }
+.pdv-add-form-input{ height:40px; border:1px solid var(--gray-200); border-radius:8px; padding:0 12px; font-size:14px; font-family:inherit; width:100%; box-sizing:border-box; }
+.pdv-add-form-desconto-row{ display:flex; gap:6px; }
+.pdv-add-form-desconto-row .pdv-add-form-input{ flex:1; }
+.pdv-add-form-select{ height:40px; border:1px solid var(--gray-200); border-radius:8px; padding:0 8px; font-size:13px; font-family:inherit; background:#fff; }
+.pdv-add-form-btn{ width:100%; height:42px; margin-top:10px; }
+.pdv-catalogo-item{ display:flex; align-items:center; gap:10px; border:1px solid var(--gray-200); border-radius:8px; padding:10px 12px; }
+.pdv-catalogo-item-info{ flex:1; min-width:0; }
+.pdv-catalogo-item-nome{ font-size:13px; font-weight:700; color:var(--gray-900); }
+.pdv-catalogo-item-preco{ font-size:12px; color:var(--gray-500); margin-top:2px; }
+.pdv-btn-add{ width:38px; height:38px; flex-shrink:0; border-radius:8px; border:1px solid var(--green-dark); background:#fff; color:var(--green-dark); font-size:18px; font-weight:800; cursor:pointer; }
+.pdv-btn-add:active{ background:var(--green-light); }
+.pdv-secao-label{ font-size:11px; font-weight:700; color:var(--gray-500); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+.pdv-cliente-busca{ display:flex; gap:6px; }
+.pdv-cliente-input{ flex:1; height:40px; border:1px solid var(--gray-200); border-radius:8px; padding:0 12px; font-size:13px; font-family:inherit; }
+.pdv-btn-add-cliente{ width:40px; height:40px; flex-shrink:0; border-radius:8px; border:1px solid var(--gray-200); background:#fff; cursor:pointer; font-size:16px; }
+.pdv-cliente-selecionado{ display:flex; align-items:center; gap:8px; background:var(--green-light); border-radius:8px; padding:8px 10px; font-size:13px; }
+.pdv-cliente-selecionado button{ margin-left:auto; background:none; border:none; cursor:pointer; font-size:14px; color:var(--gray-500); }
+.pdv-carrinho-lista{ display:flex; flex-direction:column; gap:10px; min-height:40px; }
+.pdv-carrinho-vazio{ font-size:12px; color:var(--gray-400); text-align:center; padding:16px 0; }
+.pdv-carrinho-item{ display:flex; align-items:center; gap:8px; }
+.pdv-carrinho-item-nome{ flex:1; min-width:0; font-size:13px; }
+.pdv-carrinho-item-qtd{ width:38px; height:32px; text-align:center; border:1px solid var(--gray-300); border-radius:6px; font-size:13px; font-weight:700; font-family:inherit; }
+.pdv-carrinho-item-sub{ width:78px; text-align:right; font-size:13px; font-weight:700; }
+.pdv-carrinho-item-rm{ background:none; border:none; color:var(--red); cursor:pointer; font-size:15px; width:24px; }
+.pdv-pagamento-wrap{ display:flex; gap:6px; flex-wrap:wrap; }
+.pdv-pagamento-chip{ font-size:12px; font-weight:700; padding:7px 14px; border-radius:20px; border:1px solid var(--gray-200); background:#fff; color:var(--gray-600); cursor:pointer; }
+.pdv-pagamento-chip.ativo{ background:var(--green-light); border-color:var(--green-dark); color:var(--green-dark); }
+.pdv-total-wrap{ margin-top:auto; border-top:1px solid var(--gray-100); padding-top:12px; }
+.pdv-total-row{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px; }
+.pdv-total-row strong{ font-size:24px; color:var(--gray-900); }
+.pdv-btn-finalizar{ width:100%; height:46px; font-size:14px; }
+.pdv-btn-finalizar:disabled{ opacity:.5; cursor:not-allowed; }
+.pdv-resumo-card{ max-width:420px; margin:24px auto; background:#fff; border:1px solid var(--gray-200); border-radius:12px; padding:24px; text-align:center; }
+.pdv-resumo-check{ width:52px; height:52px; border-radius:50%; background:var(--green-light); color:var(--green-dark); font-size:26px; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
+.pdv-resumo-btns{ display:flex; gap:8px; margin-top:18px; }
+.pdv-resumo-btns .btn{ flex:1; }
+@media(min-width:900px){
+  .pdv-layout{ flex-direction:row; align-items:flex-start; }
+  .pdv-col-catalogo{ flex:1.3; }
+  .pdv-col-carrinho{ flex:1; position:sticky; top:12px; }
 }
 /* ── Gerador de Propostas ── */
 /* Altura da TELA baseada só em constantes reais (topbar 48px + padding vertical do
@@ -639,6 +704,9 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
         <div class="sidebar-item" data-tela="gerador-propostas" onclick="irPara('gerador-propostas')">
           <span class="sidebar-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span> Gerador de Propostas
         </div>
+        <div class="sidebar-item" data-tela="pdv" onclick="irPara('pdv')">
+          <span class="sidebar-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span> PDV
+        </div>
         <div class="sidebar-item sidebar-item-disabled" title="Em desenvolvimento — ainda não disponível">
           <span class="sidebar-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L11 5 L16 9"/><path d="M5 10 V19 H14 V11"/><path d="M17 3 C19.5 3 21 5 21 7.5"/><path d="M17.3 6 C18.5 6 19.3 7 19.3 8"/></svg></span> Casa Inteligente
         </div>
@@ -664,6 +732,9 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           <div class="sidebar-item sidebar-subitem" data-tela="rel-propostas" onclick="irPara('rel-propostas')">
             <span class="sidebar-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> Propostas Digitais
           </div>
+          <div class="sidebar-item sidebar-subitem" data-tela="rel-financeiro" onclick="irPara('rel-financeiro')">
+            <span class="sidebar-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span> Financeiro & Vendas
+          </div>
         </div>
         <div class="sidebar-sep"></div>
         <div class="sidebar-group-header" onclick="toggleSidebarGrupo('financeiro')" id="grp-hdr-financeiro">
@@ -671,11 +742,11 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           <span class="sidebar-group-arrow" id="grp-arrow-financeiro">▾</span>
         </div>
         <div class="sidebar-group-body collapsed" id="grp-body-financeiro">
-          <div class="sidebar-item" style="opacity:.45;cursor:default;pointer-events:none">
-            <span class="sidebar-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span> Receitas <span style="font-size:9px;background:var(--gray-100);color:var(--gray-400);border-radius:4px;padding:1px 5px;margin-left:4px">Em breve</span>
+          <div class="sidebar-item" data-tela="receitas" onclick="irPara('receitas')">
+            <span class="sidebar-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span> Receitas
           </div>
-          <div class="sidebar-item" style="opacity:.45;cursor:default;pointer-events:none">
-            <span class="sidebar-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17L12 22L22 17"/><path d="M2 12L12 17L22 12"/><path d="M12 2L2 7L12 12L22 7L12 2z"/></svg></span> Despesas <span style="font-size:9px;background:var(--gray-100);color:var(--gray-400);border-radius:4px;padding:1px 5px;margin-left:4px">Em breve</span>
+          <div class="sidebar-item" data-tela="despesas" onclick="irPara('despesas')">
+            <span class="sidebar-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17L12 22L22 17"/><path d="M2 12L12 17L22 12"/><path d="M12 2L2 7L12 12L22 7L12 2z"/></svg></span> Despesas
           </div>
         </div>
         <div class="sidebar-sep"></div>
@@ -701,7 +772,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 384</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 398</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -1092,6 +1163,48 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
         <div class="card-header"><div class="card-title">⚡ Kit Rápido — da estimativa ao fechamento</div></div>
         <div class="card-body" style="padding:16px" id="rel-prop-kit">
           <div style="color:var(--gray-400);font-size:12px;text-align:center;padding:20px">Carregando...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RELATÓRIO: Financeiro & Vendas -->
+    <div class="screen" id="screen-rel-financeiro">
+      <div class="card-header" style="background:none;border:none;padding:0 0 16px 0">
+        <div>
+          <div style="font-size:20px;font-weight:800;color:var(--gray-900)">💰 Financeiro & Vendas</div>
+          <div style="font-size:12px;color:var(--gray-500);margin-top:2px">Receitas, despesas e desempenho de vendas do PDV</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-body" style="padding:10px 16px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.5px">Período</span>
+            <input type="date" id="rel-fin-de" class="form-input" style="height:28px;font-size:11px;padding:0 8px;width:130px" oninput="renderRelFinanceiro()">
+            <span style="font-size:11px;color:var(--gray-400)">até</span>
+            <input type="date" id="rel-fin-ate" class="form-input" style="height:28px;font-size:11px;padding:0 8px;width:130px" oninput="renderRelFinanceiro()">
+            <button class="btn btn-sm btn-secondary" onclick="inicializarFiltroRelFinanceiro()" style="font-size:10px;height:28px;padding:0 10px">Mês atual</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px" id="rel-fin-kpis"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">💵 Receita por origem</div></div>
+          <div class="card-body" style="padding:16px" id="rel-fin-receita-origem">
+            <div style="color:var(--gray-400);font-size:12px;text-align:center;padding:20px">Nenhum dado no período</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">📉 Despesas por categoria</div></div>
+          <div class="card-body" style="padding:16px" id="rel-fin-despesa-categoria">
+            <div style="color:var(--gray-400);font-size:12px;text-align:center;padding:20px">Nenhum dado no período</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">🏷️ Produtos mais vendidos no PDV</div></div>
+        <div class="card-body" style="padding:16px" id="rel-fin-produtos-pdv">
+          <div style="color:var(--gray-400);font-size:12px;text-align:center;padding:20px">Nenhum dado no período</div>
         </div>
       </div>
     </div>
@@ -1705,6 +1818,119 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
       </div>
     </div>
     <div id="gp-print-area" style="display:none"></div>
+
+    <div class="screen" id="screen-pdv">
+      <div class="card-header" style="background:none;border:none;padding:0 0 12px 0">
+        <div class="card-title">PDV — Venda de produtos</div>
+      </div>
+      <div class="nav-tabs" style="padding:0;border-radius:8px 8px 0 0;margin-bottom:14px">
+        <div class="nav-tab active" id="pdv-aba-nova" onclick="pdvMudarAba('nova')">Nova venda</div>
+        <div class="nav-tab" id="pdv-aba-historico" onclick="pdvMudarAba('historico')">Vendas realizadas</div>
+      </div>
+      <div id="pdv-view-catalogo">
+        <div class="pdv-layout">
+          <div class="pdv-col-catalogo">
+            <div class="pdv-busca-wrap">
+              <i class="pdv-busca-icon">🔎</i>
+              <input type="text" id="pdv-busca-input" class="pdv-busca-input" placeholder="Buscar produto por nome ou marca" onfocus="this.select()" oninput="pdvRenderCatalogo()">
+            </div>
+            <div id="pdv-catalogo-lista" class="pdv-catalogo-lista"></div>
+          </div>
+          <div class="pdv-col-carrinho">
+            <div class="pdv-secao-label">Cliente (opcional)</div>
+            <div id="pdv-cliente-wrap"></div>
+
+            <div class="pdv-secao-label" style="margin-top:14px">Carrinho</div>
+            <div id="pdv-carrinho-lista" class="pdv-carrinho-lista"></div>
+
+            <div class="pdv-secao-label" style="margin-top:14px">Forma de pagamento</div>
+            <div id="pdv-pagamento-wrap" class="pdv-pagamento-wrap"></div>
+
+            <div class="pdv-total-wrap">
+              <div class="pdv-total-row"><span>Total</span><strong id="pdv-total-valor">R$ 0,00</strong></div>
+              <button class="btn btn-primary pdv-btn-finalizar" id="pdv-btn-finalizar" onclick="pdvFinalizarVenda()" disabled>Finalizar venda</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="pdv-view-resumo" style="display:none"></div>
+
+      <div id="pdv-view-historico" style="display:none">
+        <div class="card">
+          <div class="card-body">
+            <div class="pdv-busca-wrap" style="max-width:340px">
+              <i class="pdv-busca-icon">🔎</i>
+              <input type="text" id="pdv-historico-busca-input" class="pdv-busca-input" placeholder="Buscar por cliente, nº ou vendedor" onfocus="this.select()" oninput="pdvRenderHistorico()">
+            </div>
+            <div id="pdv-historico-lista"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="screen-receitas">
+      <div class="card-header" style="background:none;border:none;padding:0 0 12px 0">
+        <div class="card-title">Receitas</div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+            <div><label class="form-label" style="font-size:10px">De</label><input type="date" id="receitas-de" class="form-input" style="height:32px;font-size:12px" onchange="renderReceitas()"></div>
+            <div><label class="form-label" style="font-size:10px">Até</label><input type="date" id="receitas-ate" class="form-input" style="height:32px;font-size:12px" onchange="renderReceitas()"></div>
+            <div><label class="form-label" style="font-size:10px">Origem</label>
+              <select id="receitas-filtro-origem" class="form-select" style="height:32px;font-size:12px" onchange="renderReceitas()">
+                <option value="">Todas</option>
+                <option value="pdv">PDV</option>
+                <option value="proposta">Proposta</option>
+                <option value="manual">Manual</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="margin-left:auto;height:32px;font-size:12px" onclick="abrirModalReceitaManual()">+ Nova receita manual</button>
+          </div>
+          <div class="leads-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+            <div class="lead-kpi"><div class="lead-kpi-val" id="receitas-kpi-total">R$ 0,00</div><div class="lead-kpi-label">Total do período</div></div>
+            <div class="lead-kpi"><div class="lead-kpi-val" id="receitas-kpi-pdv">R$ 0,00</div><div class="lead-kpi-label">Vendas PDV</div></div>
+            <div class="lead-kpi"><div class="lead-kpi-val" id="receitas-kpi-proposta">R$ 0,00</div><div class="lead-kpi-label">Propostas fechadas</div></div>
+            <div class="lead-kpi"><div class="lead-kpi-val" id="receitas-kpi-manual">R$ 0,00</div><div class="lead-kpi-label">Manual</div></div>
+          </div>
+          <div id="receitas-lista"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="screen-despesas">
+      <div class="card-header" style="background:none;border:none;padding:0 0 12px 0">
+        <div class="card-title">Despesas</div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+            <div><label class="form-label" style="font-size:10px">De</label><input type="date" id="despesas-de" class="form-input" style="height:32px;font-size:12px" onchange="renderDespesas()"></div>
+            <div><label class="form-label" style="font-size:10px">Até</label><input type="date" id="despesas-ate" class="form-input" style="height:32px;font-size:12px" onchange="renderDespesas()"></div>
+            <div><label class="form-label" style="font-size:10px">Categoria</label>
+              <select id="despesas-filtro-categoria" class="form-select" style="height:32px;font-size:12px" onchange="renderDespesas()">
+                <option value="">Todas</option>
+              </select>
+            </div>
+            <div><label class="form-label" style="font-size:10px">Status</label>
+              <select id="despesas-filtro-status" class="form-select" style="height:32px;font-size:12px" onchange="renderDespesas()">
+                <option value="">Todos</option>
+                <option value="pendente">Pendente</option>
+                <option value="pago">Pago</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="margin-left:auto;height:32px;font-size:12px" onclick="abrirModalDespesa()">+ Nova despesa</button>
+          </div>
+          <div class="leads-kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+            <div class="lead-kpi"><div class="lead-kpi-val" id="despesas-kpi-total">R$ 0,00</div><div class="lead-kpi-label">Total do período</div></div>
+            <div class="lead-kpi" style="background:#ecfdf5;border-color:#a7f3d0"><div class="lead-kpi-val" id="despesas-kpi-pago" style="color:#047857">R$ 0,00</div><div class="lead-kpi-label" style="color:#047857">Pago</div></div>
+            <div class="lead-kpi" style="background:#fffbeb;border-color:#fde68a"><div class="lead-kpi-val" id="despesas-kpi-pendente" style="color:#92400e">R$ 0,00</div><div class="lead-kpi-label" style="color:#92400e">Pendente</div></div>
+          </div>
+          <div id="despesas-lista"></div>
+        </div>
+      </div>
+    </div>
         </div><!-- /main-content gestor -->
       </div><!-- /gestor-content -->
     </div><!-- /sidebar+content -->
@@ -2276,6 +2502,69 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
   <button class="modal-close" onclick="fecharModal('modal-imagem-cheia')" style="position:fixed;top:16px;right:20px;color:var(--gray-700);font-size:32px">&times;</button>
 </div>
 
+<!-- Financeiro: receita manual (avulsa, fora de PDV/propostas — ex: reembolso, adiantamento) -->
+<div class="modal-overlay" id="modal-receita-manual">
+  <div class="modal" style="width:380px;max-width:96vw">
+    <div class="modal-header">
+      <span class="modal-title">Nova receita</span>
+      <button class="modal-close" data-fecha="modal-receita-manual">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:12px"><label class="form-label">Descrição</label><input type="text" class="form-input" id="receita-manual-descricao" onfocus="this.select()" placeholder="Ex: Reembolso fornecedor"></div>
+      <div class="form-group" style="margin-bottom:12px"><label class="form-label">Valor</label><input type="text" class="form-input" id="receita-manual-valor" value="0,00" onfocus="this.select()" oninput="fmtPrecoInput(this)"></div>
+      <div class="form-group" style="margin-bottom:16px"><label class="form-label">Data</label><input type="date" class="form-input" id="receita-manual-data"></div>
+      <button class="btn btn-primary" id="btn-salvar-receita" style="width:100%" onclick="salvarReceitaManual()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Financeiro: despesa (avulsa ou recorrente). Mesmo modal serve pra criar e editar
+     (_despesaEditandoId controla o modo) — evita duplicar o formulário inteiro. -->
+<div class="modal-overlay" id="modal-despesa">
+  <div class="modal" style="width:400px;max-width:96vw">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-despesa-titulo">Nova despesa</span>
+      <button class="modal-close" data-fecha="modal-despesa">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:12px"><label class="form-label">Descrição</label><input type="text" class="form-input" id="despesa-descricao" onfocus="this.select()" placeholder="Ex: Aluguel da loja"></div>
+      <div class="form-group" style="margin-bottom:12px"><label class="form-label">Valor</label><input type="text" class="form-input" id="despesa-valor" value="0,00" onfocus="this.select()" oninput="fmtPrecoInput(this)"></div>
+      <div class="form-group" style="margin-bottom:12px"><label class="form-label">Categoria</label>
+        <select class="form-select" id="despesa-categoria"></select>
+      </div>
+      <div class="form-group" style="display:flex;flex-direction:row;align-items:center;gap:8px;margin-bottom:12px">
+        <input type="checkbox" id="despesa-recorrente" onchange="despesaToggleRecorrente()">
+        <label class="form-label" style="margin:0" for="despesa-recorrente">Despesa recorrente (todo mês)</label>
+      </div>
+      <div class="form-group" id="despesa-wrap-vencimento" style="margin-bottom:16px">
+        <label class="form-label">Data de vencimento</label>
+        <input type="date" class="form-input" id="despesa-vencimento">
+      </div>
+      <div class="form-group" id="despesa-wrap-dia" style="display:none;margin-bottom:16px">
+        <label class="form-label">Todo dia</label>
+        <select class="form-select" id="despesa-dia-vencimento"></select>
+      </div>
+      <button class="btn btn-primary" id="btn-salvar-despesa" style="width:100%" onclick="salvarDespesa()">Salvar</button>
+      <button class="btn btn-secondary" style="width:100%;margin-top:8px;display:none" id="btn-excluir-despesa" onclick="excluirDespesa()">Excluir despesa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Financeiro: marcar ocorrência de despesa como paga (avulsa ou de um mês específico
+     de uma recorrente — chaveOcorrencia identifica qual). -->
+<div class="modal-overlay" id="modal-despesa-pagar">
+  <div class="modal" style="width:340px;max-width:96vw">
+    <div class="modal-header">
+      <span class="modal-title">Marcar como pago</span>
+      <button class="modal-close" data-fecha="modal-despesa-pagar">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Data de pagamento</label><input type="date" class="form-input" id="despesa-pagar-data"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="confirmarDespesaPaga()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: pergunta o que foi instalado ANTES de chamar a IA de upsell — os itens da proposta
      costumam ser nomes de serviço genéricos (ex: "Visita de Avaliação"), então a IA sozinha
      não tem informação suficiente pra sugerir algo com sentido. Quem sabe o que foi
@@ -2656,6 +2945,13 @@ function toastCampo(msg, elId){
   destacarCampoErro(elId);
 }
 function fmtBRL(v){ return 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+// Inverso de fmtBRLInput/fmtPrecoInput: recebe "1.234,56" (ou "56", ou vazio) e devolve number.
+function parseValorBR(s){
+  if(!s) return 0;
+  var limpo = String(s).replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,'');
+  var n = parseFloat(limpo);
+  return isNaN(n) ? 0 : n;
+}
 function fmtData(ts){ if(!ts) return '—'; var d = ts.toDate ? ts.toDate() : new Date(ts); return d.toLocaleDateString('pt-BR'); }
 function initiais(nome){ if(!nome) return '?'; return nome.split(' ').slice(0,2).map(function(p){ return p[0]; }).join('').toUpperCase(); }
 // ── STATUS CONFIG ──
@@ -2770,6 +3066,583 @@ window.addEventListener('resize', function(){
   if(window.innerWidth > 640) toggleMenuMobileGestor(false);
 });
 
+// ── PDV — venda avulsa de produtos (rodada 386+) ──
+// v1 só vende PRODUTOS do catálogo (PRODUTOS_LISTA filtrado por tipo==='produto') — serviços,
+// kits e composições ficam de fora por enquanto porque dependem de contexto extra (qtdCameras,
+// perímetro etc.) pra calcular preço, ao contrário de produto que já tem preco fixo.
+var pdvCarrinho = [];
+var pdvClienteSelecionado = null; // {id, nome} ou null = venda sem cliente
+var pdvFormaPagamento = 'pix';
+var pdvParcelas = 1;
+var PDV_FORMAS_PAGAMENTO = [ {v:'pix', label:'Pix'}, {v:'dinheiro', label:'Dinheiro'}, {v:'cartao', label:'Cartão'}, {v:'consignado', label:'Consignado'} ];
+
+function pdvInit(){
+  pdvLimparClienteRapidoAbandonado();
+  pdvCarrinho = [];
+  pdvClienteSelecionado = null;
+  pdvFormaPagamento = 'pix';
+  pdvParcelas = 1;
+  pdvVendaEmEdicaoId = null;
+  _pdvProdutoEmAdicao = null;
+  pdvMudarAba('nova');
+  document.getElementById('pdv-view-catalogo').style.display = 'block';
+  document.getElementById('pdv-view-resumo').style.display = 'none';
+  document.getElementById('pdv-busca-input').value = '';
+  pdvRenderCatalogo();
+  pdvRenderCliente();
+  pdvRenderPagamento();
+  pdvRenderCarrinho();
+  pdvRenderFaixaEdicao();
+  document.getElementById('pdv-btn-finalizar').textContent = 'Finalizar venda';
+}
+
+// Carrega uma venda já existente de volta no carrinho pra edição — reaproveita a MESMA tela
+// de "Nova venda" (catálogo+carrinho), só muda o comportamento do botão final (atualiza em vez
+// de criar, mantém o mesmo número). idLinha é gerado de novo aqui porque só existe em memória,
+// nunca foi salvo no Firestore (os itens salvos não precisam de chave única, só o carrinho).
+var _pdvNumeroEmEdicao = null;
+var _pdvCriadoEmEmEdicao = null;
+function pdvEditarVenda(vendaId){
+  var v = todasVendasPdvGlobal.find(function(x){ return x.id === vendaId; });
+  if(!v) return;
+  pdvVendaEmEdicaoId = vendaId;
+  _pdvNumeroEmEdicao = v.numero;
+  _pdvCriadoEmEmEdicao = v.criadoEm;
+  pdvCarrinho = (v.itens||[]).map(function(i){
+    return { idLinha: 'l'+(_pdvProximoIdLinha++), produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, valorUnit: i.valorUnit, desconto: i.desconto||0, subtotal: i.subtotal };
+  });
+  pdvClienteSelecionado = v.clienteId ? { id: v.clienteId, nome: v.clienteNome, cpf: v.clienteCpf||'', telefone: v.clienteTelefone||'' } : null;
+  pdvFormaPagamento = v.formaPagamento;
+  pdvParcelas = v.parcelas || 1;
+  document.getElementById('pdv-view-catalogo').style.display = 'block';
+  document.getElementById('pdv-view-resumo').style.display = 'none';
+  document.getElementById('pdv-view-historico').style.display = 'none';
+  document.getElementById('pdv-aba-nova').classList.add('active');
+  document.getElementById('pdv-aba-historico').classList.remove('active');
+  document.getElementById('pdv-busca-input').value = '';
+  pdvRenderCatalogo();
+  pdvRenderCliente();
+  pdvRenderPagamento();
+  pdvRenderCarrinho();
+  pdvRenderFaixaEdicao();
+  document.getElementById('pdv-btn-finalizar').textContent = 'Salvar alterações';
+}
+
+function pdvCancelarEdicao(){ pdvInit(); }
+
+function pdvRenderFaixaEdicao(){
+  var existente = document.getElementById('pdv-faixa-edicao');
+  if(existente) existente.remove();
+  if(!pdvVendaEmEdicaoId) return;
+  var faixa = document.createElement('div');
+  faixa.id = 'pdv-faixa-edicao';
+  faixa.style.cssText = 'background:#fff8e1;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px';
+  faixa.innerHTML = '<span>✏️ Editando a venda #'+_pdvNumeroEmEdicao+'</span><a href="javascript:void(0)" onclick="pdvCancelarEdicao()" style="color:var(--gray-500);text-decoration:underline">Cancelar edição</a>';
+  var layout = document.querySelector('#pdv-view-catalogo .pdv-layout');
+  layout.parentNode.insertBefore(faixa, layout);
+}
+
+// Só mostra resultados quando o usuário digita (mínimo 2 letras) — nada de listar o catálogo
+// inteiro por padrão, que fica grande e pesado de rolar. Clicar num resultado abre o formulário
+// de adicionar (pdvAbrirFormAdicionar), em vez de jogar direto no carrinho.
+// Normaliza acentos pra busca não-sensível ("camera" encontra "câmera") — usa decomposição
+// unicode (NFD) + remove os diacríticos, funciona pro alfabeto latino sem precisar de mapa manual.
+function pdvNormalizarBusca(s){
+  return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+
+function pdvRenderCatalogo(){
+  var termo = pdvNormalizarBusca(document.getElementById('pdv-busca-input').value);
+  var el = document.getElementById('pdv-catalogo-lista');
+  if(termo.length < 2){ el.innerHTML = '<div class="pdv-carrinho-vazio">Digite pelo menos 2 letras pra buscar um produto.</div>'; return; }
+  var lista = PRODUTOS_LISTA.filter(function(p){ return (p.tipo||'produto') === 'produto'; })
+    .filter(function(p){
+      return pdvNormalizarBusca(p.nome).indexOf(termo) >= 0 || pdvNormalizarBusca(p.marca).indexOf(termo) >= 0;
+    }).slice(0, 20);
+  if(!lista.length){ el.innerHTML = '<div class="pdv-carrinho-vazio">Nenhum produto encontrado.</div>'; return; }
+  el.innerHTML = lista.map(function(p){
+    return '<div class="pdv-catalogo-item" style="cursor:pointer" onclick="pdvAbrirFormAdicionar(\''+p.id+'\')">'+
+      '<div class="pdv-catalogo-item-info">'+
+        '<div class="pdv-catalogo-item-nome">'+escHtml(p.nome)+'</div>'+
+        '<div class="pdv-catalogo-item-preco">'+(p.marca?escHtml(p.marca)+' · ':'')+fmtBRL(p.preco||0)+'</div>'+
+      '</div>'+
+      '<span class="pdv-btn-add" style="display:flex;align-items:center;justify-content:center">+</span>'+
+    '</div>';
+  }).join('');
+}
+
+// Formulário de adicionar produto: Quantidade, Valor Unitário (editável, pré-preenchido do
+// catálogo mas pode ser ajustado na hora), Desconto (R$ ou %), Valor Total calculado ao vivo.
+// onfocus="this.select()" em todos os campos — mesmo padrão já usado no resto do sistema
+// (clicar e já poder digitar por cima, sem precisar apagar o valor anterior primeiro).
+var _pdvProdutoEmAdicao = null;
+function pdvAbrirFormAdicionar(produtoId){
+  var prod = PRODUTOS_LISTA.find(function(p){ return p.id === produtoId; });
+  if(!prod) return;
+  _pdvProdutoEmAdicao = prod;
+  var el = document.getElementById('pdv-catalogo-lista');
+  el.innerHTML =
+    '<div class="pdv-add-form">'+
+      '<div class="pdv-add-form-titulo">'+escHtml(prod.nome)+'</div>'+
+      '<label class="pdv-add-form-label">Quantidade</label>'+
+      '<input type="number" min="1" step="1" id="pdv-add-qtd" class="pdv-add-form-input" value="1" onfocus="this.select()" oninput="pdvRecalcularFormAdicionar()">'+
+      '<label class="pdv-add-form-label">Valor unitário</label>'+
+      '<input type="text" id="pdv-add-valor-unit" class="pdv-add-form-input" value="'+fmtBRLInput(prod.preco||0)+'" onfocus="this.select()" oninput="fmtPrecoInput(this);pdvRecalcularFormAdicionar()">'+
+      '<label class="pdv-add-form-label">Desconto</label>'+
+      '<div class="pdv-add-form-desconto-row">'+
+        '<input type="text" id="pdv-add-desconto" class="pdv-add-form-input" value="0,00" onfocus="this.select()" oninput="fmtPrecoInput(this);pdvRecalcularFormAdicionar()">'+
+        '<select id="pdv-add-desconto-tipo" class="pdv-add-form-select" onchange="pdvRecalcularFormAdicionar()">'+
+          '<option value="valor">R$</option>'+
+          '<option value="pct">%</option>'+
+        '</select>'+
+      '</div>'+
+      '<label class="pdv-add-form-label">Valor total</label>'+
+      '<input type="text" id="pdv-add-total" class="pdv-add-form-input" value="" readonly>'+
+      '<button class="btn btn-primary pdv-add-form-btn" onclick="pdvConfirmarAdicionar()">Adicionar produto</button>'+
+      '<button class="btn btn-secondary pdv-add-form-btn" onclick="pdvRenderCatalogo()">Cancelar</button>'+
+    '</div>';
+  pdvRecalcularFormAdicionar();
+}
+
+function pdvRecalcularFormAdicionar(){
+  var qtd = parseInt(document.getElementById('pdv-add-qtd').value, 10) || 0;
+  var valorUnit = parseValorBR(document.getElementById('pdv-add-valor-unit').value);
+  var descontoBruto = parseValorBR(document.getElementById('pdv-add-desconto').value);
+  var descontoTipo = document.getElementById('pdv-add-desconto-tipo').value;
+  var bruto = qtd * valorUnit;
+  var descontoValor = descontoTipo === 'pct' ? bruto * (descontoBruto/100) : descontoBruto;
+  if(descontoValor > bruto) descontoValor = bruto; // nunca deixa o total ficar negativo
+  var total = bruto - descontoValor;
+  document.getElementById('pdv-add-total').value = fmtBRL(total);
+}
+
+var _pdvProximoIdLinha = 1;
+function pdvConfirmarAdicionar(){
+  if(!_pdvProdutoEmAdicao) return;
+  var qtd = parseInt(document.getElementById('pdv-add-qtd').value, 10) || 0;
+  if(qtd < 1){ toast('Informe uma quantidade válida.', 'error'); return; }
+  var valorUnit = parseValorBR(document.getElementById('pdv-add-valor-unit').value);
+  var descontoBruto = parseValorBR(document.getElementById('pdv-add-desconto').value);
+  var descontoTipo = document.getElementById('pdv-add-desconto-tipo').value;
+  var bruto = qtd * valorUnit;
+  var descontoValor = descontoTipo === 'pct' ? bruto * (descontoBruto/100) : descontoBruto;
+  if(descontoValor > bruto) descontoValor = bruto;
+  var prod = _pdvProdutoEmAdicao;
+  // idLinha (não produtoId) identifica a linha do carrinho — o mesmo produto pode entrar em
+  // mais de uma linha com valor/desconto diferentes (ex: 2un no preço normal + 3un com desconto
+  // especial), então produtoId sozinho não serve mais de chave única aqui.
+  pdvCarrinho.push({ idLinha: 'l'+(_pdvProximoIdLinha++), produtoId: prod.id, nome: prod.nome, qtd: qtd, valorUnit: valorUnit, desconto: descontoValor, subtotal: bruto - descontoValor });
+  _pdvProdutoEmAdicao = null;
+  document.getElementById('pdv-busca-input').value = '';
+  pdvRenderCatalogo();
+  pdvRenderCarrinho();
+}
+
+function pdvAlterarQtd(idLinha, novaQtdTexto){
+  var qtd = parseInt(novaQtdTexto, 10);
+  var item = pdvCarrinho.find(function(i){ return i.idLinha === idLinha; });
+  if(!item) return;
+  if(!qtd || qtd < 1){ pdvRemoverItem(idLinha); return; }
+  item.qtd = qtd;
+  var bruto = qtd * item.valorUnit;
+  item.subtotal = Math.max(bruto - (item.desconto||0), 0);
+  pdvRenderCarrinho();
+}
+
+function pdvRemoverItem(idLinha){
+  pdvCarrinho = pdvCarrinho.filter(function(i){ return i.idLinha !== idLinha; });
+  pdvRenderCarrinho();
+}
+
+function pdvTotalCarrinho(){
+  return pdvCarrinho.reduce(function(soma, i){ return soma + i.subtotal; }, 0);
+}
+
+function pdvRenderCarrinho(){
+  var el = document.getElementById('pdv-carrinho-lista');
+  if(!pdvCarrinho.length){
+    el.innerHTML = '<div class="pdv-carrinho-vazio">Carrinho vazio — adicione produtos ao lado.</div>';
+  } else {
+    el.innerHTML = pdvCarrinho.map(function(i){
+      return '<div class="pdv-carrinho-item">'+
+        '<span class="pdv-carrinho-item-nome">'+escHtml(i.nome)+(i.desconto?' <small style="color:var(--red)">(-'+fmtBRL(i.desconto)+')</small>':'')+'</span>'+
+        '<input type="number" min="1" class="pdv-carrinho-item-qtd" value="'+i.qtd+'" onfocus="this.select()" onchange="pdvAlterarQtd(\''+i.idLinha+'\', this.value)">'+
+        '<span class="pdv-carrinho-item-sub">'+fmtBRL(i.subtotal)+'</span>'+
+        '<button class="pdv-carrinho-item-rm" onclick="pdvRemoverItem(\''+i.idLinha+'\')" aria-label="Remover">✕</button>'+
+      '</div>';
+    }).join('');
+  }
+  document.getElementById('pdv-total-valor').textContent = fmtBRL(pdvTotalCarrinho());
+  document.getElementById('pdv-btn-finalizar').disabled = (pdvCarrinho.length === 0);
+  // O valor da parcela depende do total — recalcula sempre que o carrinho muda (só tem efeito
+  // visual quando a forma de pagamento é Cartão, pdvRenderPagamento ignora nos outros casos).
+  if(document.getElementById('pdv-pagamento-wrap')) pdvRenderPagamento();
+}
+
+function pdvRenderPagamento(){
+  var el = document.getElementById('pdv-pagamento-wrap');
+  var html = '<div style="display:flex;gap:6px;flex-wrap:wrap">'+PDV_FORMAS_PAGAMENTO.map(function(f){
+    return '<span class="pdv-pagamento-chip'+(pdvFormaPagamento===f.v?' ativo':'')+'" onclick="pdvSelecionarPagamento(\''+f.v+'\')">'+f.label+'</span>';
+  }).join('')+'</div>';
+  if(pdvFormaPagamento === 'cartao'){
+    var total = pdvTotalCarrinho();
+    var opcoes = '';
+    for(var n=1; n<=6; n++){
+      opcoes += '<option value="'+n+'"'+(pdvParcelas===n?' selected':'')+'>'+n+'x'+(n===1?' (à vista)':' de '+fmtBRL(total/n))+'</option>';
+    }
+    html += '<div style="margin-top:8px;display:flex;align-items:center;gap:8px">'+
+      '<select id="pdv-parcelas-select" class="pdv-add-form-select" style="height:36px" onchange="pdvSelecionarParcelas(this.value)">'+opcoes+'</select>'+
+    '</div>';
+  }
+  el.innerHTML = html;
+}
+function pdvSelecionarPagamento(v){
+  pdvFormaPagamento = v;
+  if(v !== 'cartao') pdvParcelas = 1;
+  pdvRenderPagamento();
+}
+function pdvSelecionarParcelas(n){ pdvParcelas = parseInt(n,10)||1; pdvRenderPagamento(); }
+
+function pdvRenderCliente(){
+  var el = document.getElementById('pdv-cliente-wrap');
+  if(pdvClienteSelecionado){
+    el.innerHTML = '<div class="pdv-cliente-selecionado">👤 '+escHtml(pdvClienteSelecionado.nome)+
+      '<button onclick="pdvLimparCliente()" aria-label="Remover cliente">✕</button></div>';
+    return;
+  }
+  el.innerHTML = '<div class="pdv-cliente-busca">'+
+    '<input type="text" id="pdv-cliente-busca-input" class="pdv-cliente-input" placeholder="Buscar cliente (opcional)" onfocus="this.select()" oninput="pdvBuscarCliente(this.value)" autocomplete="off">'+
+    '<button class="pdv-btn-add-cliente" onclick="pdvAbrirCadastroClienteRapido()" title="Cadastrar cliente na hora" aria-label="Cadastrar cliente novo">＋</button>'+
+  '</div><div id="pdv-cliente-resultados"></div>';
+}
+
+function pdvBuscarCliente(termo){
+  var resEl = document.getElementById('pdv-cliente-resultados');
+  termo = (termo||'').toLowerCase().trim();
+  if(termo.length < 2){ resEl.innerHTML = ''; return; }
+  var achados = todasClientesGlobal.filter(function(c){
+    return (c.nome||'').toLowerCase().indexOf(termo) >= 0 || (c.telefone||'').indexOf(termo) >= 0;
+  }).slice(0, 6);
+  if(!achados.length){ resEl.innerHTML = '<div class="pdv-carrinho-vazio">Nenhum cliente encontrado.</div>'; return; }
+  resEl.innerHTML = achados.map(function(c){
+    return '<div class="pdv-catalogo-item" style="cursor:pointer;margin-top:6px" onclick="pdvSelecionarCliente(\''+c.id+'\')">'+
+      '<div class="pdv-catalogo-item-info"><div class="pdv-catalogo-item-nome">'+escHtml(c.nome)+'</div>'+
+      '<div class="pdv-catalogo-item-preco">'+escHtml(c.telefone||'')+'</div></div></div>';
+  }).join('');
+}
+
+function pdvSelecionarCliente(clienteId){
+  var c = todasClientesGlobal.find(function(x){ return x.id === clienteId; });
+  if(!c) return;
+  pdvClienteSelecionado = { id: c.id, nome: c.nome, cpf: c.cpf||'', telefone: c.telefone||'' };
+  pdvRenderCliente();
+}
+function pdvLimparCliente(){ pdvClienteSelecionado = null; pdvRenderCliente(); }
+
+// Cadastro rápido só pede nome+telefone (o mínimo pra identificar o cliente na venda) — não é
+// o modal completo de Lead/Cliente, que pede origem/interesse/endereço etc, irrelevante aqui.
+// Cadastro rápido a partir do PDV: em vez de um prompt() simplificado, cria um registro
+// mínimo em clientes/ e abre o MESMO modal completo que a tela Clientes usa (CPF, CEP,
+// endereço) — assim o usuário decide na hora quais campos vale a pena preencher (ex: CPF pode
+// ser necessário mais tarde pra emitir NF). _pdvClienteRapidoId marca "esse cliente nasceu
+// aqui" pra salvarEdicaoCliente() saber que deve selecionar+fechar em vez do fluxo normal.
+var _pdvClienteRapidoId = null;
+function pdvAbrirCadastroClienteRapido(){
+  db.collection('clientes').add({
+    nome: 'Novo cliente', telefone: '', cpf: '', cep: '', cidade: '', endereco: '', enderecoNumero: '',
+    origemLeadId: null, contatos: [], interesses: [],
+    criadoEm: firebase.firestore.FieldValue.serverTimestamp(), atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(ref){
+    var novo = { id: ref.id, nome: 'Novo cliente', telefone: '', cpf: '', cep: '', cidade: '', endereco: '', enderecoNumero: '', interesses: [] };
+    // Mesma condição de corrida do financeiro (ver salvarReceitaManual) — clientes/ também tem
+    // listener em tempo real, então checar antes de empurrar evita duplicar a entrada local.
+    if(!todasClientesGlobal.some(function(c){ return c.id===ref.id; })) todasClientesGlobal.push(novo);
+    _pdvClienteRapidoId = ref.id;
+    abrirDetalheCliente(ref.id);
+    toggleEdicaoCliente(true);
+    // "+ Novo interesse" abre o fluxo de orçamento — não faz sentido nesse contexto de venda avulsa.
+    var btnNovoInt = document.getElementById('cliente-det-btn-novo-interesse');
+    if(btnNovoInt) btnNovoInt.style.display = 'none';
+  }).catch(function(e){ console.error('[erro silencioso #pdv1]', e); toast('Erro ao cadastrar cliente.', 'error'); });
+}
+// Se o usuário abandonar o cadastro rápido sem salvar (fechar o modal sem preencher), o registro
+// placeholder "Novo cliente" fica órfão no banco — limpo aqui sempre que uma nova venda começa.
+function pdvLimparClienteRapidoAbandonado(){
+  if(!_pdvClienteRapidoId) return;
+  var idAbandonado = _pdvClienteRapidoId;
+  db.collection('clientes').doc(idAbandonado).delete().catch(function(){});
+  todasClientesGlobal = todasClientesGlobal.filter(function(c){ return c.id !== idAbandonado; });
+  _pdvClienteRapidoId = null;
+}
+
+// Numeração sequencial do comprovante — transação atômica em config/pdv_contador pra dois
+// PDVs vendendo ao mesmo tempo (ex: web + tablet) nunca gerarem o mesmo número.
+function pdvProximoNumero(){
+  var ref = db.doc('config/pdv_contador');
+  return db.runTransaction(function(tx){
+    return tx.get(ref).then(function(snap){
+      var atual = (snap.exists && snap.data().ultimoNumero) ? snap.data().ultimoNumero : 0;
+      var proximo = atual + 1;
+      tx.set(ref, { ultimoNumero: proximo }, { merge: true });
+      return proximo;
+    });
+  });
+}
+
+// null = criando venda nova; com id = editando uma venda já existente (mesmo número, sem
+// incrementar o contador de novo).
+var pdvVendaEmEdicaoId = null;
+
+function pdvFinalizarVenda(){
+  if(!pdvCarrinho.length) return;
+  var btn = document.getElementById('pdv-btn-finalizar');
+  var dadosVenda = {
+    itens: pdvCarrinho.map(function(i){ return { produtoId: i.produtoId, nome: i.nome, qtd: i.qtd, valorUnit: i.valorUnit, desconto: i.desconto||0, subtotal: i.subtotal }; }),
+    total: pdvTotalCarrinho(),
+    formaPagamento: pdvFormaPagamento,
+    parcelas: pdvFormaPagamento === 'cartao' ? pdvParcelas : 1,
+    clienteId: pdvClienteSelecionado ? pdvClienteSelecionado.id : null,
+    clienteNome: pdvClienteSelecionado ? pdvClienteSelecionado.nome : 'Consumidor',
+    clienteCpf: pdvClienteSelecionado ? (pdvClienteSelecionado.cpf||'') : '',
+    clienteTelefone: pdvClienteSelecionado ? (pdvClienteSelecionado.telefone||'') : '',
+    vendedorEmail: usuarioAtual ? usuarioAtual.email : null,
+    vendedorNome: (usuarioCadastroAtual && usuarioCadastroAtual.nome) || (usuarioAtual ? usuarioAtual.email : '')
+  };
+
+  if(pdvVendaEmEdicaoId){
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    dadosVenda.editadoEm = firebase.firestore.FieldValue.serverTimestamp();
+    db.collection('vendas_pdv').doc(pdvVendaEmEdicaoId).update(dadosVenda).then(function(){
+      dadosVenda.id = pdvVendaEmEdicaoId;
+      dadosVenda.numero = _pdvNumeroEmEdicao;
+      dadosVenda.criadoEm = _pdvCriadoEmEmEdicao;
+      var idx = todasVendasPdvGlobal.findIndex(function(v){ return v.id === pdvVendaEmEdicaoId; });
+      if(idx >= 0) todasVendasPdvGlobal[idx] = Object.assign({}, todasVendasPdvGlobal[idx], dadosVenda);
+      pdvVendaEmEdicaoId = null;
+      toast('Venda #'+dadosVenda.numero+' atualizada.');
+      pdvMudarAba('historico');
+    }).catch(function(e){
+      console.error('[erro silencioso #pdv5]', e);
+      toast('Erro ao salvar as alterações.', 'error');
+      btn.disabled = false; btn.textContent = 'Salvar alterações';
+    });
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Finalizando...';
+  pdvProximoNumero().then(function(numero){
+    dadosVenda.numero = numero;
+    dadosVenda.origemOrcamentoId = null; dadosVenda.origemPropostaId = null;
+    dadosVenda.criadoEm = firebase.firestore.FieldValue.serverTimestamp();
+    return db.collection('vendas_pdv').add(dadosVenda).then(function(){ return dadosVenda; });
+  }).then(function(venda){
+    pdvMostrarResumo(venda);
+  }).catch(function(e){
+    console.error('[erro silencioso #pdv2]', e);
+    toast('Erro ao finalizar a venda.', 'error');
+    btn.disabled = false; btn.textContent = 'Finalizar venda';
+  });
+}
+
+// Monta o texto da forma de pagamento pra exibição (resumo/comprovante/histórico) — centralizado
+// aqui pra não repetir a lógica de parcelas em 3 lugares diferentes.
+function pdvFormaPagamentoTexto(venda){
+  var label = (PDV_FORMAS_PAGAMENTO.find(function(f){ return f.v === venda.formaPagamento; })||{}).label || venda.formaPagamento;
+  if(venda.formaPagamento === 'cartao' && venda.parcelas > 1){
+    label += ' · '+venda.parcelas+'x de '+fmtBRL(venda.total/venda.parcelas);
+  }
+  return label;
+}
+
+function pdvMostrarResumo(venda){
+  pdvUltimaVenda = venda;
+  var formaLabel = pdvFormaPagamentoTexto(venda);
+  document.getElementById('pdv-view-catalogo').style.display = 'none';
+  var el = document.getElementById('pdv-view-resumo');
+  el.style.display = 'block';
+  el.innerHTML = '<div class="pdv-resumo-card">'+
+    '<div class="pdv-resumo-check">✓</div>'+
+    '<div style="font-size:15px;font-weight:800;margin-bottom:4px">Venda #'+venda.numero+' registrada</div>'+
+    '<div style="font-size:13px;color:var(--gray-500)">'+fmtBRL(venda.total)+' · '+formaLabel+' · '+(venda.clienteNome?escHtml(venda.clienteNome):'sem cliente vinculado')+'</div>'+
+    '<div class="pdv-resumo-btns">'+
+      '<button class="btn btn-secondary" onclick="pdvImprimirComprovante()">🖨️ Imprimir comprovante</button>'+
+      '<button class="btn btn-primary" onclick="pdvInit()">Nova venda</button>'+
+    '</div>'+
+  '</div>';
+}
+
+// Imprime um comprovante estreito (formato cupom) numa janela separada — modo genérico de
+// impressora térmica (Epson TM etc.), sem nenhuma integração fiscal. Janela própria em vez de
+// usar @media print da tela toda, porque o layout de cupom (58/80mm) é bem diferente do resto
+// do HUB e não vale a pena poluir o CSS geral do sistema com isso. Lê de pdvUltimaVenda (var
+// global) em vez de receber a venda via parâmetro no onclick — nunca serializar objeto pra
+// dentro de um atributo HTML (JSON.stringify+escape de aspas já causou bug silencioso antes
+// neste projeto), sempre mais simples e seguro manter o dado em memória e só disparar a ação.
+var pdvUltimaVenda = null;
+// Dados fixos da empresa pro cabeçalho do cupom — únicos, centralizados aqui (se mudar
+// endereço/telefone no futuro, só precisa editar em um lugar).
+var PDV_EMPRESA = {
+  nome: 'SafeZone Smart',
+  cnpj: '68.251.324/0001-36',
+  endereco: 'Rua Jorge Hilsdorf, 226 - Vila Hilsdorf, Leme/SP',
+  telefone: '(19) 99686-9707',
+  logoUrl: 'https://hub.safezonesmart.com.br/imagens/logo.png'
+};
+function pdvImprimirComprovante(){
+  var venda = pdvUltimaVenda;
+  if(!venda) return;
+  var formaLabel = pdvFormaPagamentoTexto(venda);
+  var dt = venda.criadoEm && venda.criadoEm.toDate ? venda.criadoEm.toDate() : new Date();
+  var dataStr = dt.toLocaleDateString('pt-BR');
+  var horaStr = dt.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  // Sem "R$" nas linhas da tabela (só números) — é o que dá espaço pra tudo caber numa largura
+  // de 72mm sem quebrar. O "R$" continua no Total do pedido, que é uma linha só, sem disputa de
+  // espaço com outras colunas.
+  var num = function(v){ return (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  var linhasItens = venda.itens.map(function(i){
+    return '<tr>'+
+      '<td colspan="4" style="padding-top:4px;font-weight:bold">'+escHtml(i.nome)+'</td>'+
+      '</tr><tr>'+
+      '<td>'+num(i.qtd)+'</td>'+
+      '<td>'+num(i.valorUnit)+'</td>'+
+      '<td>'+(i.desconto ? num(i.desconto) : '-')+'</td>'+
+      '<td style="text-align:right">'+num(i.subtotal)+'</td>'+
+    '</tr>';
+  }).join('');
+  var html = '<html><head><meta charset="UTF-8"><title>Comprovante #'+venda.numero+'</title><style>'+
+    '@page{ margin:4mm }'+
+    'body{ font-family:monospace; font-size:11px; width:72mm; margin:0 auto; color:#000 }'+
+    '.center{ text-align:center }'+
+    '.sep{ border-top:1px dashed #000; margin:6px 0 }'+
+    '.tot{ display:flex; justify-content:space-between; font-weight:bold; font-size:14px; margin-top:6px }'+
+    // table-layout:fixed + colgroup com largura fixa por coluna — sem isso, o navegador mede a
+    // largura de cada coluna pelo conteúdo mais largo (inclusive o header "VL.UNT"), e a linha
+    // do nome do produto (colspan=4) bagunçava essa medição inteira quando o nome era comprido.
+    // Com largura fixa, o nome só quebra linha dentro do espaço dele — nunca empurra as colunas.
+    'table{ width:100%; border-collapse:collapse; font-size:10px; table-layout:fixed }'+
+    'th{ text-align:left; border-bottom:1px solid #000; padding-bottom:2px; font-size:9px; white-space:nowrap; overflow:hidden }'+
+    'td{ padding:1px 0; word-break:break-word }'+
+    'img.logo{ max-width:110px; max-height:55px; display:block; margin:0 auto 6px }'+
+    '</style></head><body>'+
+    '<img class="logo" src="'+PDV_EMPRESA.logoUrl+'" onerror="this.style.display=\'none\'">'+
+    '<div><strong>'+escHtml(PDV_EMPRESA.nome)+'</strong><br>'+
+      'CNPJ: '+PDV_EMPRESA.cnpj+'<br>'+
+      escHtml(PDV_EMPRESA.endereco)+'<br>'+
+      'Tel: '+PDV_EMPRESA.telefone+'<br>'+
+      'Operador: '+escHtml(venda.vendedorNome||'—')+
+    '</div>'+
+    '<div class="sep"></div>'+
+    '<div><strong>Venda Nº '+venda.numero+'</strong></div>'+
+    '<div>Data: '+dataStr+' &nbsp; Hora: '+horaStr+'</div>'+
+    '<div class="sep"></div>'+
+    '<div>Cliente: '+escHtml(venda.clienteNome||'Consumidor')+'</div>'+
+    (venda.clienteCpf ? '<div>CPF/CNPJ: '+escHtml(venda.clienteCpf)+'</div>' : '')+
+    (venda.clienteTelefone ? '<div>Telefone: '+escHtml(venda.clienteTelefone)+'</div>' : '')+
+    '<div class="sep"></div>'+
+    '<div><strong>DETALHES DA VENDA</strong></div>'+
+    '<table><colgroup><col style="width:16%"><col style="width:26%"><col style="width:20%"><col style="width:38%"></colgroup>'+
+    '<thead><tr><th>QTD</th><th>VL.UNT</th><th>DESC</th><th style="text-align:right">TOTAL</th></tr></thead>'+
+    '<tbody>'+linhasItens+'</tbody></table>'+
+    '<div class="sep"></div>'+
+    '<div class="tot"><span>Total do pedido</span><span>'+fmtBRL(venda.total)+'</span></div>'+
+    '<div class="sep"></div>'+
+    '<div><strong>PAGAMENTO</strong></div>'+
+    '<div>Forma de pag.: '+formaLabel+'</div>'+
+    '<div class="sep"></div>'+
+    '<div class="center">*** Este cupom não é documento fiscal ***</div>'+
+    '<div class="center">Obrigado e volte sempre!</div>'+
+    '</body></html>';
+  var w = window.open('', '_blank', 'width=400,height=600');
+  if(!w){ toast('Permita pop-ups para imprimir o comprovante.', 'error'); return; }
+  w.document.write(html);
+  w.document.close();
+  w.onload = function(){ w.print(); };
+}
+
+// ── Abas do PDV (Nova venda / Vendas realizadas) ──
+function pdvMudarAba(aba){
+  document.getElementById('pdv-aba-nova').classList.toggle('active', aba === 'nova');
+  document.getElementById('pdv-aba-historico').classList.toggle('active', aba === 'historico');
+  var mostrarNova = (aba === 'nova');
+  document.getElementById('pdv-view-catalogo').style.display = mostrarNova ? 'block' : 'none';
+  document.getElementById('pdv-view-resumo').style.display = 'none';
+  document.getElementById('pdv-view-historico').style.display = mostrarNova ? 'none' : 'block';
+  if(aba === 'historico') pdvCarregarHistorico();
+}
+
+var todasVendasPdvGlobal = [];
+// Busca sob demanda (não é listener em tempo real como leads/orçamentos) — histórico de vendas
+// não precisa refletir mudança de outro usuário instantaneamente, e evita mais um listener
+// permanente rodando o tempo todo só pra uma tela secundária.
+function pdvCarregarHistorico(){
+  var el = document.getElementById('pdv-historico-lista');
+  el.innerHTML = '<div class="pdv-carrinho-vazio">Carregando...</div>';
+  db.collection('vendas_pdv').orderBy('numero', 'desc').limit(100).get().then(function(snap){
+    todasVendasPdvGlobal = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    pdvRenderHistorico();
+  }).catch(function(e){
+    console.error('[erro silencioso #pdv3]', e);
+    el.innerHTML = '<div class="pdv-carrinho-vazio">Erro ao carregar o histórico.</div>';
+  });
+}
+
+function pdvRenderHistorico(){
+  var el = document.getElementById('pdv-historico-lista');
+  if(!todasVendasPdvGlobal.length){ el.innerHTML = '<div class="pdv-carrinho-vazio">Nenhuma venda registrada ainda.</div>'; return; }
+  var termoEl = document.getElementById('pdv-historico-busca-input');
+  var termo = pdvNormalizarBusca(termoEl ? termoEl.value : '');
+  var lista = todasVendasPdvGlobal;
+  if(termo){
+    lista = lista.filter(function(v){
+      return pdvNormalizarBusca(v.clienteNome).indexOf(termo) >= 0 ||
+        pdvNormalizarBusca(v.vendedorNome).indexOf(termo) >= 0 ||
+        String(v.numero).indexOf(termo) >= 0;
+    });
+  }
+  if(!lista.length){ el.innerHTML = '<div class="pdv-carrinho-vazio">Nenhuma venda encontrada.</div>'; return; }
+  el.innerHTML = '<table class="os-table" style="width:100%"><thead><tr>'+
+    '<th>Nº</th><th>Data</th><th>Cliente</th><th>Total</th><th>Pagamento</th><th>Vendedor</th><th></th>'+
+    '</tr></thead><tbody>'+
+    lista.map(function(v){
+      var dt = v.criadoEm && v.criadoEm.toDate ? v.criadoEm.toDate() : null;
+      var dataStr = dt ? dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—';
+      return '<tr>'+
+        '<td>#'+v.numero+'</td>'+
+        '<td>'+dataStr+'</td>'+
+        '<td>'+escHtml(v.clienteNome || '—')+'</td>'+
+        '<td>'+fmtBRL(v.total)+'</td>'+
+        '<td>'+pdvFormaPagamentoTexto(v)+'</td>'+
+        '<td>'+escHtml(v.vendedorNome||'')+'</td>'+
+        '<td><button class="btn btn-secondary btn-sm" onclick="pdvReimprimir(\''+v.id+'\')">🖨️ Imprimir</button> <button class="btn btn-secondary btn-sm" onclick="pdvEditarVenda(\''+v.id+'\')">✏️ Editar</button> <button class="btn btn-secondary btn-sm" style="color:var(--red)" onclick="pdvExcluirVenda(\''+v.id+'\')" aria-label="Excluir venda">🗑️</button></td>'+
+      '</tr>';
+    }).join('')+
+  '</tbody></table>';
+}
+
+// Exclusão de verdade (não é estorno/cancelamento com histórico) — condiz com o pedido: uma
+// venda de balcão errada deve simplesmente sumir. Não mexe em estoque nem em nada mais, porque
+// o PDV não tem controle de estoque (decisão de escopo já alinhada).
+function pdvExcluirVenda(vendaId){
+  var v = todasVendasPdvGlobal.find(function(x){ return x.id === vendaId; });
+  if(!v) return;
+  if(!confirm('Excluir a venda #'+v.numero+' ('+fmtBRL(v.total)+')? Esta ação não pode ser desfeita.')) return;
+  db.collection('vendas_pdv').doc(vendaId).delete().then(function(){
+    todasVendasPdvGlobal = todasVendasPdvGlobal.filter(function(x){ return x.id !== vendaId; });
+    pdvRenderHistorico();
+    toast('Venda excluída.');
+  }).catch(function(e){
+    console.error('[erro silencioso #pdv4]', e);
+    toast('Erro ao excluir a venda.', 'error');
+  });
+}
+
+function pdvReimprimir(vendaId){
+  var v = todasVendasPdvGlobal.find(function(x){ return x.id === vendaId; });
+  if(!v) return;
+  pdvUltimaVenda = v;
+  pdvImprimirComprovante();
+}
+
 function irPara(tela){
   var telaAnteriorEl = document.querySelector('.screen.active');
   var telaAnteriorId = telaAnteriorEl ? telaAnteriorEl.id.replace('screen-','') : null;
@@ -2801,6 +3674,10 @@ function irPara(tela){
     if(tela === 'rel-operacional'){ inicializarFiltroRelOp(); renderRelOperacional(); }
     if(tela === 'rel-propostas'){ inicializarFiltroRelProp(); renderRelPropostasDigitais(); }
     if(tela === 'gerador-propostas') gpInit();
+    if(tela === 'pdv') pdvInit();
+    if(tela === 'receitas') renderReceitas();
+    if(tela === 'despesas') renderDespesas();
+    if(tela === 'rel-financeiro') renderRelFinanceiro();
     if(tela === 'fabricantes') renderFabricantes();
     if(tela === 'backup') atualizarInfoUltimoBackup();
     // Expandir grupo colapsável se item ativo pertence a ele
@@ -4851,8 +5728,8 @@ function migrarTasksParaListas(){
 // validar algo pontual — é a mesma ferramenta usada nos dois sentidos, só muda pra qual projeto
 // Firebase você está conectado no momento (ver AMBIENTE_PRODUCAO).
 // ══════════════════════════════════════════════════════════════════════════════════════════
-var BACKUP_COLECOES = ['aceites_propostas','clientes','interesses_propostas','leads','levantamentos','notas','notificacoes_sistema','orcamentos','os','posvenda','propostas','propostas_publicas','tasks','tecnicos','usuarios','visitas_avaliacao','visualizacoes_propostas'];
-var BACKUP_CONFIG_DOCS = ['composicoes','dashboard_briefing','fabricantes','kits','migracoes','oportunidades','posvenda_mensagens','produtos','servicos','tasks_listas','telegram_config'];
+var BACKUP_COLECOES = ['aceites_propostas','clientes','financeiro_lancamentos','interesses_propostas','leads','levantamentos','notas','notificacoes_sistema','orcamentos','os','posvenda','propostas','propostas_publicas','tasks','tecnicos','usuarios','vendas_pdv','visitas_avaliacao','visualizacoes_propostas'];
+var BACKUP_CONFIG_DOCS = ['composicoes','dashboard_briefing','fabricantes','kits','migracoes','oportunidades','pdv_contador','posvenda_mensagens','produtos','servicos','tasks_listas','telegram_config'];
 var BACKUP_SUBCOLECOES = [
   {colecao:'os', sub:'historico'},
   {colecao:'leads', sub:'eventos'},
@@ -4865,8 +5742,8 @@ var BACKUP_SUBCOLECOES = [
 var BACKUP_GRUPOS = [
   { id:'catalogo', label:'📦 Catálogo (produtos, composições, kits, serviços, fabricantes, oportunidades)',
     colecoes:[], configs:['produtos','composicoes','kits','servicos','fabricantes','oportunidades'], subcolecoes:[] },
-  { id:'comercial', label:'💼 Comercial (leads, orçamentos, propostas, clientes, tasks, notas, pós-venda)',
-    colecoes:['leads','orcamentos','propostas','clientes','tasks','notas','posvenda'], configs:['tasks_listas','posvenda_mensagens'],
+  { id:'comercial', label:'💼 Comercial (leads, orçamentos, propostas, clientes, tasks, notas, pós-venda, vendas PDV, financeiro)',
+    colecoes:['leads','orcamentos','propostas','clientes','tasks','notas','posvenda','vendas_pdv','financeiro_lancamentos'], configs:['tasks_listas','posvenda_mensagens','pdv_contador'],
     subcolecoes:[{colecao:'leads',sub:'eventos'},{colecao:'orcamentos',sub:'eventos'},{colecao:'orcamentos',sub:'documento_proposta_fotos'}] },
   { id:'operacional', label:'🔧 Operacional (OS, levantamentos, visitas de avaliação)',
     colecoes:['os','levantamentos','visitas_avaliacao'], configs:[], subcolecoes:[{colecao:'os',sub:'historico'}] },
@@ -4944,11 +5821,11 @@ function atualizarInfoUltimoBackup(){
 function abrirModalLimparBancoTestes(){
   if(AMBIENTE_PRODUCAO){ toast('Essa ação não existe em produção.', 'error'); return; } // trava dupla, nunca deve disparar
   document.getElementById('backup-limpar-grupos').innerHTML = BACKUP_GRUPOS.map(function(g){
-    // Catálogo e Configurações do sistema ficam desmarcados por padrão — geralmente você quer
-    // manter esses (produtos, composições, listas de tasks etc.) e só limpar o que foi gerado
-    // testando (leads, orçamentos, propostas, usuários de teste). Marca manualmente se quiser
-    // um reset completo de verdade.
-    var marcadoPadrao = (g.id !== 'catalogo' && g.id !== 'sistema');
+    // Catálogo, Usuários e Configurações do sistema ficam desmarcados por padrão — geralmente
+    // você quer manter esses (produtos, composições, usuários de teste com login já configurado,
+    // listas de tasks etc.) e só limpar o que foi gerado testando de fato (leads, orçamentos,
+    // propostas). Marca manualmente se quiser um reset completo de verdade.
+    var marcadoPadrao = (g.id !== 'catalogo' && g.id !== 'sistema' && g.id !== 'usuarios');
     return '<label style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:11px;cursor:pointer;border-bottom:1px solid var(--gray-50)">'+
       '<input type="checkbox" class="backup-grupo-limpar-check" value="'+g.id+'"'+(marcadoPadrao?' checked':'')+' style="margin-top:2px"> <span>'+g.label+'</span>'+
     '</label>';
@@ -5259,12 +6136,28 @@ function lembreteBackup10DiasVerificar(){
     // não lança uma nova (pedido do usuário) — só espera até ela ser marcada como feita.
     db.collection('tasks').where('tituloBackupAuto','==', true).get().then(function(qsExistente){
       db.doc('config/backup_status').set({ lembreteVerificadoEm: hojeStr }, {merge:true});
+      // Corrige tasks de backup antigas que caíram na lista errada por causa do bug do
+      // TASKS_LISTAS_CONFIG[0] (ver comentário abaixo) — só migra as que ainda estão
+      // pendentes, não mexe em concluídas (histórico não precisa mudar de lugar).
+      var listaOutrosOk = TASKS_LISTAS_CONFIG.find(function(l){ return l.id==='outros'; });
+      if(listaOutrosOk){
+        qsExistente.docs.forEach(function(d2){
+          var t2 = d2.data();
+          if((t2.status||'pendente') !== 'concluida' && t2.listaId !== 'outros'){
+            db.collection('tasks').doc(d2.id).update({ listaId:'outros' }).catch(function(e){ console.warn('Erro ao corrigir lista da task de backup:', e); });
+          }
+        });
+      }
       var jaTemAberta = qsExistente.docs.some(function(d2){ return (d2.data().status||'pendente') !== 'concluida'; });
       if(jaTemAberta) return;
       db.collection('tasks').add({
         titulo: '💾 Fazer backup do sistema', descricao: 'Backup programado (dia 1, 10 ou 20). Vá em Cadastros → Backup e clique em "Baixar backup agora".',
         responsavel: 'ambos', prioridade: 'urgente', status: 'pendente', tituloBackupAuto: true,
-        prazo: hojeStr, proximoLembrete: hojeStr, listaId: (TASKS_LISTAS_CONFIG[0]?TASKS_LISTAS_CONFIG[0].id:''),
+        // Bug corrigido: usava TASKS_LISTAS_CONFIG[0], ou seja, "a primeira lista que existir" —
+        // que por acaso é "Pendências com clientes" no seed padrão (ordem:1), não tem nada a ver
+        // com backup. O certo é procurar a lista "outros" pelo id de verdade (ver LISTAS_SEED_INICIAL),
+        // com fallback pra primeira lista só se "outros" não existir (ex: usuário renomeou/apagou).
+        prazo: hojeStr, proximoLembrete: hojeStr, listaId: (TASKS_LISTAS_CONFIG.find(function(l){ return l.id==='outros'; }) ? 'outros' : (TASKS_LISTAS_CONFIG[0]?TASKS_LISTAS_CONFIG[0].id:'')),
         criadoEm: firebase.firestore.FieldValue.serverTimestamp()
       }).then(function(){
         notificarTelegram('💾 *Lembrete de backup*\n\nHoje é dia de backup programado (1, 10 ou 20). Acesse Cadastros → Backup pra gerar um novo.');
@@ -6041,6 +6934,7 @@ function iniciarGestor(){
   iniciarListenerPosvenda();
   carregarMensagensPosvenda();
   iniciarListenerClientes();
+  iniciarListenerFinanceiro();
   migrarNotasParaTasksSeNecessario();
   carregarLeads();
   carregarServicos();
@@ -7216,6 +8110,17 @@ function agTooltipShow(ev, e){
         (mChegadaFmt?'<div>📅 Previsão de chegada: '+mChegadaFmt+'</div>':'')+
         '<div style="margin-top:5px;opacity:.75;font-size:10px">Clique para confirmar o envio com o fornecedor</div>';
     }
+  } else if(ev.tipo === 'despesa'){
+    var desp = todasFinanceiroGlobal.find(function(x){ return x.id === ev.id; });
+    if(desp){
+      var despVencFmt = ev.venc ? new Date(ev.venc+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+      html = '<div style="font-weight:700;margin-bottom:5px;font-size:12px">💰 '+escHtml(desp.descricao||'')+'</div>'+
+        '<div>Categoria: '+escHtml(desp.categoria||'')+'</div>'+
+        '<div>Valor: R$ '+fmtValor(desp.valor||0)+'</div>'+
+        (despVencFmt?'<div>📅 Vencimento: '+despVencFmt+'</div>':'')+
+        (desp.recorrente?'<div style="opacity:.75;font-size:10px">🔁 Despesa recorrente</div>':'')+
+        '<div style="margin-top:5px;opacity:.75;font-size:10px">Clique para marcar como paga</div>';
+    }
   }
   if(!html) return;
   _agTooltipEl.innerHTML = html;
@@ -7349,7 +8254,7 @@ function renderizarAgenda(){
   else renderizarAgendaSemana(corpo);
   // Event delegation para tooltips — cobre OS, leads, orçamentos, pós-venda e tasks
   corpo.onmouseover = function(e){
-    var el = e.target.closest('[data-osid],[data-leadid],[data-orcid],[data-posvendaid],[data-taskid],[data-materialid]');
+    var el = e.target.closest('[data-osid],[data-leadid],[data-orcid],[data-posvendaid],[data-taskid],[data-materialid],[data-despesaid]');
     if(!el) return;
     if(el.dataset.osid)   agTooltipShow({tipo:'os',       id:el.dataset.osid},   e);
     if(el.dataset.leadid) agTooltipShow({tipo:'lead',     id:el.dataset.leadid}, e);
@@ -7357,9 +8262,10 @@ function renderizarAgenda(){
     if(el.dataset.posvendaid) agTooltipShow({tipo:'posvenda',id:el.dataset.posvendaid}, e);
     if(el.dataset.taskid) agTooltipShow({tipo:'task',     id:el.dataset.taskid}, e);
     if(el.dataset.materialid) agTooltipShow({tipo:'material', id:el.dataset.materialid}, e);
+    if(el.dataset.despesaid) agTooltipShow({tipo:'despesa', id:el.dataset.despesaid, venc:el.dataset.despesavenc}, e);
   };
   corpo.onmouseout = function(e){
-    var el = e.target.closest('[data-osid],[data-leadid],[data-orcid],[data-posvendaid],[data-taskid],[data-materialid]');
+    var el = e.target.closest('[data-osid],[data-leadid],[data-orcid],[data-posvendaid],[data-taskid],[data-materialid],[data-despesaid]');
     if(el) agTooltipHide();
   };
 }
@@ -7370,6 +8276,11 @@ function renderizarAgendaMes(corpo){
   var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   document.getElementById('agenda-titulo').textContent = meses[mes] + ' ' + ano;
   var nomesDias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  // Despesas do mês visível (mais uma folga de 3 dias antes, pro alerta "vence amanhã" do dia
+  // 1 do mês também funcionar) — calculado uma vez fora do loop de dias, igual o resto da agenda.
+  var _despMesDeStr = ano+'-'+String(mes+1).padStart(2,'0')+'-01';
+  var _despMesDeDate = new Date(ano, mes, 1); _despMesDeDate.setDate(_despMesDeDate.getDate()-3);
+  var despesasPendentesMes = despesaOcorrenciasPendentesNoRange(dataLocalYMD(_despMesDeDate), ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(new Date(ano,mes+1,0).getDate()).padStart(2,'0'));
   var html = '<div class="agenda-grid">';
   nomesDias.forEach(function(d){ html += '<div class="agenda-dia-header">' + d + '</div>'; });
   var primeiroDia = new Date(ano, mes, 1).getDay();
@@ -7439,6 +8350,13 @@ function renderizarAgendaMes(corpo){
       materialAlertaNoDia.forEach(function(o){
         html += '<div class="agenda-os-pill" style="background:#fef2f2;color:#b91c1c;border-left:3px solid #dc2626" data-materialid="'+o.id+'" onclick="event.stopPropagation();irPara(\'os\');setTimeout(function(){abrirModalMaterialOS(\''+o.id.replace(/\'/g,"\\'")+'\');},250)">⚠ Confirmar envio c/ fornecedor: '+escHtml(o.cliente||'')+'</div>';
       });
+      // Despesas vencendo hoje + alerta 1 dia antes (mesmo padrão do material acima)
+      despesasPendentesMes.filter(function(o){ return o.vencimento === dataStr; }).forEach(function(o){
+        html += '<div class="agenda-os-pill" style="background:#fce7f3;color:#9d174d;border-left:3px solid #db2777" data-despesaid="'+o.id+'" data-despesavenc="'+o.vencimento+'" onclick="event.stopPropagation();irPara(\'despesas\');setTimeout(function(){abrirModalDespesa(\''+o.id.replace(/\'/g,"\\'")+'\');},250)">💰 Vence hoje: '+escHtml(o.descricao)+'</div>';
+      });
+      despesasPendentesMes.filter(function(o){ return diaAnteriorStr(o.vencimento) === dataStr; }).forEach(function(o){
+        html += '<div class="agenda-os-pill" style="background:#fef2f2;color:#b91c1c;border-left:3px solid #dc2626" data-despesaid="'+o.id+'" data-despesavenc="'+o.vencimento+'" onclick="event.stopPropagation();irPara(\'despesas\');setTimeout(function(){abrirModalDespesa(\''+o.id.replace(/\'/g,"\\'")+'\');},250)">⚠ Vence amanhã: '+escHtml(o.descricao)+'</div>';
+      });
     }
     html += '</div>';
   }
@@ -7462,6 +8380,8 @@ function renderizarAgendaSemana(corpo){
   var mesesAbr = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   var ini = diasSemana[0], fim = diasSemana[6];
   document.getElementById('agenda-titulo').textContent = ini.getDate() + ' ' + mesesAbr[ini.getMonth()] + ' — ' + fim.getDate() + ' ' + mesesAbr[fim.getMonth()] + ' ' + fim.getFullYear();
+  var _despSemDeDate = new Date(ini); _despSemDeDate.setDate(_despSemDeDate.getDate()-3);
+  var despesasPendentesSemana = despesaOcorrenciasPendentesNoRange(dataLocalYMD(_despSemDeDate), dataLocalYMD(fim));
   var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:600px">';
   html += '<tr><th style="width:60px;border-bottom:1px solid var(--gray-200);border-right:1px solid var(--gray-200);padding:8px;background:var(--gray-50)"></th>';
   diasSemana.forEach(function(dd,i){
@@ -7532,6 +8452,12 @@ function renderizarAgendaSemana(corpo){
         });
         materialAlertaNaDia.forEach(function(o){
           html += '<div style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:4px;background:#fef2f2;color:#b91c1c;border-left:3px solid #dc2626;margin-bottom:2px;cursor:pointer" data-materialid="'+o.id+'" onclick="event.stopPropagation();irPara(\'os\');setTimeout(function(){abrirModalMaterialOS(\''+o.id.replace(/\'/g,"\\'")+'\');},250)">⚠ Confirmar envio c/ fornecedor: '+escHtml(o.cliente||'')+'</div>';
+        });
+        despesasPendentesSemana.filter(function(o){ return o.vencimento === dataStr; }).forEach(function(o){
+          html += '<div style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:4px;background:#fce7f3;color:#9d174d;border-left:3px solid #db2777;margin-bottom:2px;cursor:pointer" data-despesaid="'+o.id+'" data-despesavenc="'+o.vencimento+'" onclick="event.stopPropagation();irPara(\'despesas\');setTimeout(function(){abrirModalDespesa(\''+o.id.replace(/\'/g,"\\'")+'\');},250)">💰 Vence hoje: '+escHtml(o.descricao)+'</div>';
+        });
+        despesasPendentesSemana.filter(function(o){ return diaAnteriorStr(o.vencimento) === dataStr; }).forEach(function(o){
+          html += '<div style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:4px;background:#fef2f2;color:#b91c1c;border-left:3px solid #dc2626;margin-bottom:2px;cursor:pointer" data-despesaid="'+o.id+'" data-despesavenc="'+o.vencimento+'" onclick="event.stopPropagation();irPara(\'despesas\');setTimeout(function(){abrirModalDespesa(\''+o.id.replace(/\'/g,"\\'")+'\');},250)">⚠ Vence amanhã: '+escHtml(o.descricao)+'</div>';
         });
       }
       html += '</td>';
@@ -16161,6 +17087,17 @@ function salvarEdicaoCliente(){
     toast('Dados do cliente atualizados!','success');
     toggleEdicaoCliente(false);
     _clienteAtualDet = Object.assign({}, _clienteAtualDet, upd);
+    // Cliente nasceu do cadastro rápido do PDV — em vez de continuar mostrando o detalhe,
+    // seleciona ele direto no carrinho e fecha o modal, voltando pra venda.
+    if(_pdvClienteRapidoId === _clienteAtualDet.id){
+      var idxG = todasClientesGlobal.findIndex(function(c){ return c.id === _clienteAtualDet.id; });
+      if(idxG >= 0) todasClientesGlobal[idxG] = Object.assign({}, todasClientesGlobal[idxG], upd);
+      _pdvClienteRapidoId = null;
+      fecharModal('modal-cliente-det');
+      pdvClienteSelecionado = { id: _clienteAtualDet.id, nome: _clienteAtualDet.nome, cpf: _clienteAtualDet.cpf||'', telefone: _clienteAtualDet.telefone||'' };
+      pdvRenderCliente();
+      return;
+    }
     abrirDetalheCliente(_clienteAtualDet.id);
   }).catch(function(e){ toast('Erro: '+e.message,'error'); });
 }
@@ -18480,6 +19417,361 @@ function getMesAtualStr(){
   var ultimo = new Date(ano, hoje.getMonth()+1, 0).getDate();
   return { de: ano+'-'+mes+'-01', ate: ano+'-'+mes+'-'+String(ultimo).padStart(2,'0') };
 }
+
+// ══════════════════════════════════════════════
+// FINANCEIRO (Receitas/Despesas) — item 7 do roadmap, rodada 394+
+// Receitas NÃO são armazenadas em coleção própria — são agregadas na hora, igual a Agenda já
+// faz com seus eventos: vendas_pdv + propostas com status 'fechada' + receitas manuais (essas
+// sim gravadas, coleção financeiro_lancamentos, tipo:'receita'). Despesas são sempre manuais,
+// também em financeiro_lancamentos (tipo:'despesa'), avulsas OU recorrentes (modelo único com
+// mapa de pagamentos por mês, não gera 12 documentos antecipados — ver despesaOcorrenciasNoPeriodo).
+// ══════════════════════════════════════════════
+var CATEGORIAS_DESPESA = ['Aluguel','Água/Energia','Salários/Comissões','Fornecedores/Estoque','Impostos','Marketing','Manutenção/Ferramentas','Combustível/Transporte','Telefonia/Internet','Outros'];
+var todasFinanceiroGlobal = [];
+
+function iniciarListenerFinanceiro(){
+  var u = db.collection('financeiro_lancamentos').onSnapshot(function(snap){
+    todasFinanceiroGlobal = snap.docs.map(function(d){ var x=d.data(); x.id=d.id; return x; });
+    if(document.getElementById('screen-receitas') && document.getElementById('screen-receitas').classList.contains('active')) renderReceitas();
+    if(document.getElementById('screen-despesas') && document.getElementById('screen-despesas').classList.contains('active')) renderDespesas();
+    if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
+  }, function(e){ console.warn('listener financeiro:', e); });
+  unsubs.push(u);
+}
+
+function inicializarFiltroReceitas(){
+  var m = getMesAtualStr();
+  var de = document.getElementById('receitas-de'); if(de && !de.value) de.value = m.de;
+  var ate = document.getElementById('receitas-ate'); if(ate && !ate.value) ate.value = m.ate;
+}
+function inicializarFiltroDespesas(){
+  var m = getMesAtualStr();
+  var de = document.getElementById('despesas-de'); if(de && !de.value) de.value = m.de;
+  var ate = document.getElementById('despesas-ate'); if(ate && !ate.value) ate.value = m.ate;
+  var cat = document.getElementById('despesas-filtro-categoria');
+  if(cat && cat.options.length <= 1){
+    CATEGORIAS_DESPESA.forEach(function(c){ var o=document.createElement('option'); o.value=c; o.textContent=c; cat.appendChild(o); });
+  }
+}
+
+function renderReceitas(){
+  inicializarFiltroReceitas();
+  var de = (document.getElementById('receitas-de')||{}).value || '';
+  var ate = (document.getElementById('receitas-ate')||{}).value || '';
+  var origemFiltro = (document.getElementById('receitas-filtro-origem')||{}).value || '';
+
+  var itens = [];
+  (todasVendasPdvGlobal||[]).forEach(function(v){
+    var dt = v.criadoEm && v.criadoEm.toDate ? v.criadoEm.toDate() : null;
+    if(!dt) return;
+    var dataStr = dataLocalYMD(dt);
+    if(dataStr < de || dataStr > ate) return;
+    itens.push({ origem:'pdv', label:'Venda #'+v.numero+(v.clienteNome && v.clienteNome!=='Consumidor' ? ' · '+v.clienteNome : ''), valor:v.total||0, data:dataStr });
+  });
+  (todasPropostasGlobal||[]).forEach(function(p){
+    if(p.status !== 'fechada' || !p.fechadaEm) return;
+    var dt = p.fechadaEm.toDate ? p.fechadaEm.toDate() : new Date(p.fechadaEm);
+    var dataStr = dataLocalYMD(dt);
+    if(dataStr < de || dataStr > ate) return;
+    var orc = (todasOrcamentosGlobal||[]).find(function(o){ return (o.propostaIds||[]).indexOf(p.id) >= 0; });
+    itens.push({ origem:'proposta', label:(p.tipoServico||'Proposta')+(orc?' · '+orc.cliente:''), valor:p.valorFechado||0, data:dataStr });
+  });
+  todasFinanceiroGlobal.filter(function(x){ return x.tipo==='receita'; }).forEach(function(r){
+    if(!r.data || r.data < de || r.data > ate) return;
+    itens.push({ origem:'manual', label:r.descricao, valor:r.valor||0, data:r.data, id:r.id });
+  });
+
+  if(origemFiltro) itens = itens.filter(function(i){ return i.origem === origemFiltro; });
+  itens.sort(function(a,b){ return a.data < b.data ? 1 : -1; });
+
+  var totalGeral=0, totalPdv=0, totalProp=0, totalManual=0;
+  itens.forEach(function(i){
+    totalGeral += i.valor;
+    if(i.origem==='pdv') totalPdv += i.valor;
+    else if(i.origem==='proposta') totalProp += i.valor;
+    else totalManual += i.valor;
+  });
+  document.getElementById('receitas-kpi-total').textContent = fmtBRL(totalGeral);
+  document.getElementById('receitas-kpi-pdv').textContent = fmtBRL(totalPdv);
+  document.getElementById('receitas-kpi-proposta').textContent = fmtBRL(totalProp);
+  document.getElementById('receitas-kpi-manual').textContent = fmtBRL(totalManual);
+
+  var el = document.getElementById('receitas-lista');
+  if(!itens.length){ el.innerHTML = '<div class="pdv-carrinho-vazio">Nenhuma receita no período.</div>'; return; }
+  var origemLabel = {pdv:'PDV', proposta:'Proposta', manual:'Manual'};
+  el.innerHTML = itens.map(function(i){
+    var dataFmt = i.data.split('-').reverse().join('/');
+    return '<div class="fin-item">'+
+      '<div class="fin-item-info">'+
+        '<span class="fin-badge fin-badge-'+i.origem+'">'+origemLabel[i.origem]+'</span> '+
+        '<span class="fin-item-titulo">'+escHtml(i.label)+'</span>'+
+        '<div class="fin-item-sub">'+dataFmt+'</div>'+
+      '</div>'+
+      '<span class="fin-item-valor">'+fmtBRL(i.valor)+'</span>'+
+      (i.origem==='manual' ? '<button class="btn btn-secondary btn-sm" style="color:var(--red)" onclick="excluirReceitaManual(\''+i.id+'\')" aria-label="Excluir">🗑️</button>' : '')+
+    '</div>';
+  }).join('');
+}
+
+function abrirModalReceitaManual(){
+  document.getElementById('receita-manual-descricao').value = '';
+  document.getElementById('receita-manual-valor').value = '0,00';
+  document.getElementById('receita-manual-data').value = dataLocalYMD(new Date());
+  var btn = document.getElementById('btn-salvar-receita'); btn.disabled = false; btn.textContent = 'Salvar';
+  document.getElementById('modal-receita-manual').classList.add('open');
+}
+function salvarReceitaManual(){
+  var btn = document.getElementById('btn-salvar-receita');
+  if(btn.disabled) return; // trava contra duplo clique — sem isso um segundo clique antes do
+  // primeiro terminar disparava um segundo .add(), lançando a mesma receita duas vezes.
+  var descricao = document.getElementById('receita-manual-descricao').value.trim();
+  var valor = parseValorBR(document.getElementById('receita-manual-valor').value);
+  var data = document.getElementById('receita-manual-data').value;
+  if(!descricao){ toast('Informe uma descrição.', 'error'); return; }
+  if(!valor){ toast('Informe um valor.', 'error'); return; }
+  if(!data){ toast('Informe a data.', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  db.collection('financeiro_lancamentos').add({ tipo:'receita', descricao:descricao, valor:valor, data:data }).then(function(ref){
+    // Condição de corrida: o listener em tempo real (iniciarListenerFinanceiro) pode já ter
+    // adicionado esse mesmo doc na lista antes deste .then() rodar — sem essa checagem, o push
+    // duplicava a entrada (mesmo id duas vezes), e excluir uma "excluía as duas" na prática,
+    // porque eram sempre o mesmo documento. Mesmo padrão defensivo já usado em propostas.
+    if(!todasFinanceiroGlobal.some(function(x){ return x.id===ref.id; })){
+      todasFinanceiroGlobal.push({ id:ref.id, tipo:'receita', descricao:descricao, valor:valor, data:data });
+    }
+    renderReceitas();
+    fecharModal('modal-receita-manual');
+    toast('Receita registrada.');
+  }).catch(function(e){ console.error('[erro silencioso #fin1]', e); toast('Erro ao salvar.', 'error'); }).finally(function(){
+    btn.disabled = false; btn.textContent = 'Salvar';
+  });
+}
+function excluirReceitaManual(id){
+  if(!confirm('Excluir esta receita?')) return;
+  db.collection('financeiro_lancamentos').doc(id).delete().then(function(){
+    todasFinanceiroGlobal = todasFinanceiroGlobal.filter(function(x){ return x.id !== id; });
+    renderReceitas();
+    toast('Receita excluída.');
+  }).catch(function(e){ console.error('[erro silencioso #fin2]', e); toast('Erro ao excluir.', 'error'); });
+}
+
+// Expande uma despesa (avulsa ou modelo recorrente) nas ocorrências que caem dentro de [de,ate].
+// Avulsa = no máximo 1 ocorrência (ela mesma). Recorrente = 1 ocorrência por mês em que o dia de
+// vencimento cai no intervalo, com pago/dataPagamento/valor lidos do mapa despesa.pagamentos
+// (chave 'YYYY-MM') — só existe entrada nesse mapa pros meses já marcados como pagos.
+function despesaOcorrenciasNoPeriodo(despesa, de, ate){
+  if(!despesa.recorrente){
+    if(!despesa.dataVencimento) return [];
+    if(despesa.dataVencimento < de || despesa.dataVencimento > ate) return [];
+    return [{ id:despesa.id, chaveOcorrencia:despesa.id, descricao:despesa.descricao, valor:despesa.valor||0,
+      categoria:despesa.categoria, vencimento:despesa.dataVencimento, pago:!!despesa.pago,
+      dataPagamento:despesa.dataPagamento||null, recorrente:false }];
+  }
+  if(despesa.ativo === false) return [];
+  var out = [];
+  var cursor = new Date((de||'1970-01-01')+'T12:00:00');
+  cursor = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  var dFim = new Date((ate||de)+'T12:00:00');
+  var guard = 0;
+  while(cursor <= dFim && guard < 120){
+    guard++;
+    var ano = cursor.getFullYear(), mes = cursor.getMonth();
+    var ultimoDiaMes = new Date(ano, mes+1, 0).getDate();
+    var dia = Math.min(despesa.diaVencimento||1, ultimoDiaMes);
+    var vencStr = ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(dia).padStart(2,'0');
+    if(vencStr >= de && vencStr <= ate){
+      var ym = ano+'-'+String(mes+1).padStart(2,'0');
+      var pagInfo = (despesa.pagamentos||{})[ym] || null;
+      out.push({ id:despesa.id, chaveOcorrencia:despesa.id+'_'+ym, descricao:despesa.descricao,
+        valor:(pagInfo && pagInfo.valorPago!=null) ? pagInfo.valorPago : (despesa.valor||0),
+        categoria:despesa.categoria, vencimento:vencStr, pago:!!(pagInfo && pagInfo.pago),
+        dataPagamento: pagInfo ? pagInfo.dataPagamento : null, recorrente:true, ym:ym });
+    }
+    cursor.setMonth(cursor.getMonth()+1);
+  }
+  return out;
+}
+
+function renderDespesas(){
+  inicializarFiltroDespesas();
+  var de = (document.getElementById('despesas-de')||{}).value || '';
+  var ate = (document.getElementById('despesas-ate')||{}).value || '';
+  var catFiltro = (document.getElementById('despesas-filtro-categoria')||{}).value || '';
+  var statusFiltro = (document.getElementById('despesas-filtro-status')||{}).value || '';
+
+  var ocorrencias = [];
+  todasFinanceiroGlobal.filter(function(x){ return x.tipo==='despesa'; }).forEach(function(d){
+    ocorrencias = ocorrencias.concat(despesaOcorrenciasNoPeriodo(d, de, ate));
+  });
+  if(catFiltro) ocorrencias = ocorrencias.filter(function(o){ return o.categoria === catFiltro; });
+  if(statusFiltro==='pago') ocorrencias = ocorrencias.filter(function(o){ return o.pago; });
+  if(statusFiltro==='pendente') ocorrencias = ocorrencias.filter(function(o){ return !o.pago; });
+  ocorrencias.sort(function(a,b){ return a.vencimento < b.vencimento ? -1 : 1; });
+
+  var total=0, pago=0;
+  ocorrencias.forEach(function(o){ total += o.valor; if(o.pago) pago += o.valor; });
+  document.getElementById('despesas-kpi-total').textContent = fmtBRL(total);
+  document.getElementById('despesas-kpi-pago').textContent = fmtBRL(pago);
+  document.getElementById('despesas-kpi-pendente').textContent = fmtBRL(total-pago);
+
+  var el = document.getElementById('despesas-lista');
+  if(!ocorrencias.length){ el.innerHTML = '<div class="pdv-carrinho-vazio">Nenhuma despesa no período.</div>'; return; }
+  el.innerHTML = ocorrencias.map(function(o){
+    var vencFmt = o.vencimento.split('-').reverse().join('/');
+    var pagoFmt = o.dataPagamento ? o.dataPagamento.split('-').reverse().join('/') : '';
+    return '<div class="fin-item">'+
+      '<div class="fin-item-info" style="cursor:pointer" onclick="abrirModalDespesa(\''+o.id+'\')">'+
+        '<span class="fin-item-titulo">'+escHtml(o.descricao)+(o.recorrente?' <small style="font-weight:400;color:var(--gray-400)">(recorrente)</small>':'')+'</span>'+
+        '<div class="fin-item-sub">'+escHtml(o.categoria||'')+' · vence '+vencFmt+(pagoFmt?' · pago em '+pagoFmt:'')+'</div>'+
+      '</div>'+
+      '<span class="fin-item-valor">'+fmtBRL(o.valor)+'</span>'+
+      (o.pago
+        ? '<span class="fin-badge fin-badge-pago">Pago</span>'
+        : '<button class="btn btn-secondary btn-sm" onclick="abrirModalDespesaPagar(\''+o.id+'\',\''+(o.ym||'')+'\')">Marcar como pago</button>')+
+    '</div>';
+  }).join('');
+}
+
+function despesaToggleRecorrente(){
+  var rec = document.getElementById('despesa-recorrente').checked;
+  document.getElementById('despesa-wrap-vencimento').style.display = rec ? 'none' : 'block';
+  document.getElementById('despesa-wrap-dia').style.display = rec ? 'block' : 'none';
+}
+
+var _despesaEditandoId = null;
+function abrirModalDespesa(id){
+  _despesaEditandoId = id || null;
+  var catSel = document.getElementById('despesa-categoria');
+  if(catSel.options.length === 0){ CATEGORIAS_DESPESA.forEach(function(c){ var o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); }); }
+  var diaSel = document.getElementById('despesa-dia-vencimento');
+  if(diaSel.options.length === 0){ for(var d=1; d<=31; d++){ var o=document.createElement('option'); o.value=d; o.textContent='Dia '+d; diaSel.appendChild(o); } }
+
+  var despesa = id ? todasFinanceiroGlobal.find(function(x){ return x.id === id; }) : null;
+  document.getElementById('modal-despesa-titulo').textContent = despesa ? 'Editar despesa' : 'Nova despesa';
+  document.getElementById('btn-excluir-despesa').style.display = despesa ? 'block' : 'none';
+  if(despesa){
+    document.getElementById('despesa-descricao').value = despesa.descricao || '';
+    document.getElementById('despesa-valor').value = fmtBRLInput(despesa.valor||0);
+    catSel.value = despesa.categoria || CATEGORIAS_DESPESA[0];
+    document.getElementById('despesa-recorrente').checked = !!despesa.recorrente;
+    if(despesa.recorrente) diaSel.value = despesa.diaVencimento || 1;
+    else document.getElementById('despesa-vencimento').value = despesa.dataVencimento || '';
+  } else {
+    document.getElementById('despesa-descricao').value = '';
+    document.getElementById('despesa-valor').value = '0,00';
+    catSel.value = CATEGORIAS_DESPESA[0];
+    document.getElementById('despesa-recorrente').checked = false;
+    document.getElementById('despesa-vencimento').value = dataLocalYMD(new Date());
+    diaSel.value = 1;
+  }
+  var btn = document.getElementById('btn-salvar-despesa'); btn.disabled = false; btn.textContent = 'Salvar';
+  despesaToggleRecorrente();
+  document.getElementById('modal-despesa').classList.add('open');
+}
+
+function salvarDespesa(){
+  var btn = document.getElementById('btn-salvar-despesa');
+  if(btn.disabled) return; // trava contra duplo clique — mesmo problema/mesma solução da receita manual
+  var descricao = document.getElementById('despesa-descricao').value.trim();
+  var valor = parseValorBR(document.getElementById('despesa-valor').value);
+  var categoria = document.getElementById('despesa-categoria').value;
+  var recorrente = document.getElementById('despesa-recorrente').checked;
+  if(!descricao){ toast('Informe uma descrição.', 'error'); return; }
+  if(!valor){ toast('Informe um valor.', 'error'); return; }
+
+  var dados = { tipo:'despesa', descricao:descricao, valor:valor, categoria:categoria, recorrente:recorrente };
+  if(recorrente){
+    dados.diaVencimento = parseInt(document.getElementById('despesa-dia-vencimento').value,10) || 1;
+    dados.ativo = true;
+  } else {
+    var venc = document.getElementById('despesa-vencimento').value;
+    if(!venc){ toast('Informe a data de vencimento.', 'error'); return; }
+    dados.dataVencimento = venc;
+    dados.pago = _despesaEditandoId ? undefined : false; // preservado abaixo se for edição
+  }
+
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  if(_despesaEditandoId){
+    var atual = todasFinanceiroGlobal.find(function(x){ return x.id === _despesaEditandoId; });
+    if(atual && !recorrente){ dados.pago = atual.pago||false; dados.dataPagamento = atual.dataPagamento||null; }
+    if(atual && recorrente){ dados.pagamentos = atual.pagamentos||{}; }
+    db.collection('financeiro_lancamentos').doc(_despesaEditandoId).set(dados, {merge:false}).then(function(){
+      var idx = todasFinanceiroGlobal.findIndex(function(x){ return x.id === _despesaEditandoId; });
+      if(idx>=0) todasFinanceiroGlobal[idx] = Object.assign({id:_despesaEditandoId}, dados);
+      renderDespesas();
+      fecharModal('modal-despesa');
+      toast('Despesa atualizada.');
+    }).catch(function(e){ console.error('[erro silencioso #fin3]', e); toast('Erro ao salvar.', 'error'); }).finally(function(){
+      btn.disabled = false; btn.textContent = 'Salvar';
+    });
+  } else {
+    if(!recorrente) dados.pago = false;
+    else dados.pagamentos = {};
+    db.collection('financeiro_lancamentos').add(dados).then(function(ref){
+      // Mesma condição de corrida do salvarReceitaManual — ver comentário lá.
+      if(!todasFinanceiroGlobal.some(function(x){ return x.id===ref.id; })){
+        todasFinanceiroGlobal.push(Object.assign({id:ref.id}, dados));
+      }
+      renderDespesas();
+      fecharModal('modal-despesa');
+      toast('Despesa registrada.');
+    }).catch(function(e){ console.error('[erro silencioso #fin4]', e); toast('Erro ao salvar.', 'error'); }).finally(function(){
+      btn.disabled = false; btn.textContent = 'Salvar';
+    });
+  }
+}
+
+function excluirDespesa(){
+  if(!_despesaEditandoId) return;
+  if(!confirm('Excluir esta despesa? Se for recorrente, remove o modelo inteiro (todos os meses).')) return;
+  var id = _despesaEditandoId;
+  db.collection('financeiro_lancamentos').doc(id).delete().then(function(){
+    todasFinanceiroGlobal = todasFinanceiroGlobal.filter(function(x){ return x.id !== id; });
+    renderDespesas();
+    fecharModal('modal-despesa');
+    toast('Despesa excluída.');
+  }).catch(function(e){ console.error('[erro silencioso #fin5]', e); toast('Erro ao excluir.', 'error'); });
+}
+
+var _despesaPagarId = null, _despesaPagarYm = null;
+function abrirModalDespesaPagar(id, ym){
+  _despesaPagarId = id; _despesaPagarYm = ym || null;
+  document.getElementById('despesa-pagar-data').value = dataLocalYMD(new Date());
+  document.getElementById('modal-despesa-pagar').classList.add('open');
+}
+function confirmarDespesaPaga(){
+  var dataPagamento = document.getElementById('despesa-pagar-data').value;
+  if(!dataPagamento){ toast('Informe a data de pagamento.', 'error'); return; }
+  var despesa = todasFinanceiroGlobal.find(function(x){ return x.id === _despesaPagarId; });
+  if(!despesa) return;
+  var upd = {};
+  if(despesa.recorrente && _despesaPagarYm){
+    upd['pagamentos.'+_despesaPagarYm] = { pago:true, dataPagamento:dataPagamento, valorPago:despesa.valor||0 };
+  } else {
+    upd.pago = true; upd.dataPagamento = dataPagamento;
+  }
+  db.collection('financeiro_lancamentos').doc(_despesaPagarId).update(upd).then(function(){
+    if(despesa.recorrente && _despesaPagarYm){
+      despesa.pagamentos = despesa.pagamentos || {};
+      despesa.pagamentos[_despesaPagarYm] = { pago:true, dataPagamento:dataPagamento, valorPago:despesa.valor||0 };
+    } else {
+      despesa.pago = true; despesa.dataPagamento = dataPagamento;
+    }
+    renderDespesas();
+    fecharModal('modal-despesa-pagar');
+    toast('Despesa marcada como paga.');
+  }).catch(function(e){ console.error('[erro silencioso #fin6]', e); toast('Erro ao confirmar.', 'error'); });
+}
+
+// Despesas pendentes (ocorrências) vencendo dentro de [de,ate] — usado pela Agenda pra
+// desenhar as pílulas de vencimento + alerta 1 dia antes (mesmo padrão de "chegada de material").
+function despesaOcorrenciasPendentesNoRange(de, ate){
+  var out = [];
+  todasFinanceiroGlobal.filter(function(x){ return x.tipo==='despesa'; }).forEach(function(d){
+    despesaOcorrenciasNoPeriodo(d, de, ate).forEach(function(o){ if(!o.pago) out.push(o); });
+  });
+  return out;
+}
 function inicializarFiltroRelLeads(){
   var m = getMesAtualStr();
   var de = document.getElementById('rel-leads-de'); if(de && !de.value) de.value = m.de;
@@ -18494,6 +19786,115 @@ function inicializarFiltroRelProp(){
   var m = getMesAtualStr();
   var de = document.getElementById('rel-prop-de'); if(de && !de.value) de.value = m.de;
   var ate = document.getElementById('rel-prop-ate'); if(ate && !ate.value) ate.value = m.ate;
+}
+
+function inicializarFiltroRelFinanceiro(){
+  var m = getMesAtualStr();
+  var de = document.getElementById('rel-fin-de'); if(de && !de.value) de.value = m.de;
+  var ate = document.getElementById('rel-fin-ate'); if(ate && !ate.value) ate.value = m.ate;
+}
+
+// Relatório Financeiro & Vendas — reaproveita a MESMA lógica de agregação das telas
+// Receitas/Despesas (PDV + propostas fechadas + manuais / despesaOcorrenciasNoPeriodo), só que
+// aqui vira análise (KPIs + gráficos de barra) em vez de lista de lançamentos.
+function renderRelFinanceiro(){
+  inicializarFiltroRelFinanceiro();
+  var de = (document.getElementById('rel-fin-de')||{}).value || '';
+  var ate = (document.getElementById('rel-fin-ate')||{}).value || '';
+
+  // Receitas (mesma lógica de renderReceitas)
+  var receitas = [];
+  (todasVendasPdvGlobal||[]).forEach(function(v){
+    var dt = v.criadoEm && v.criadoEm.toDate ? v.criadoEm.toDate() : null;
+    if(!dt) return;
+    var dataStr = dataLocalYMD(dt);
+    if(dataStr < de || dataStr > ate) return;
+    receitas.push({ origem:'pdv', valor:v.total||0, itens:v.itens||[] });
+  });
+  (todasPropostasGlobal||[]).forEach(function(p){
+    if(p.status !== 'fechada' || !p.fechadaEm) return;
+    var dt = p.fechadaEm.toDate ? p.fechadaEm.toDate() : new Date(p.fechadaEm);
+    var dataStr = dataLocalYMD(dt);
+    if(dataStr < de || dataStr > ate) return;
+    receitas.push({ origem:'proposta', valor:p.valorFechado||0 });
+  });
+  todasFinanceiroGlobal.filter(function(x){ return x.tipo==='receita'; }).forEach(function(r){
+    if(!r.data || r.data < de || r.data > ate) return;
+    receitas.push({ origem:'manual', valor:r.valor||0 });
+  });
+
+  // Despesas (mesma lógica de renderDespesas)
+  var ocorrenciasDespesa = [];
+  todasFinanceiroGlobal.filter(function(x){ return x.tipo==='despesa'; }).forEach(function(d){
+    ocorrenciasDespesa = ocorrenciasDespesa.concat(despesaOcorrenciasNoPeriodo(d, de, ate));
+  });
+
+  var totalReceita = receitas.reduce(function(s,r){ return s+r.valor; }, 0);
+  var totalDespesa = ocorrenciasDespesa.reduce(function(s,o){ return s+o.valor; }, 0);
+  var saldo = totalReceita - totalDespesa;
+  var vendasPdvPeriodo = receitas.filter(function(r){ return r.origem==='pdv'; });
+  var ticketMedioPdv = vendasPdvPeriodo.length ? (vendasPdvPeriodo.reduce(function(s,r){return s+r.valor;},0) / vendasPdvPeriodo.length) : 0;
+
+  var kpiEl = document.getElementById('rel-fin-kpis');
+  if(kpiEl){
+    kpiEl.innerHTML =
+      '<div class="dash-card" style="padding:12px 14px;border-color:#bbf7d0;background:#f0fdf4"><div style="font-size:10px;font-weight:700;color:var(--green-dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Receita total</div><div style="font-size:20px;font-weight:800;color:var(--green-dark)">'+fmtBRL(totalReceita)+'</div></div>'+
+      '<div class="dash-card" style="padding:12px 14px;border-color:#fecaca;background:#fff8f8"><div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Despesa total</div><div style="font-size:20px;font-weight:800;color:var(--red)">'+fmtBRL(totalDespesa)+'</div></div>'+
+      '<div class="dash-card" style="padding:12px 14px;border-color:#bfdbfe;background:#eff6ff"><div style="font-size:10px;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Saldo</div><div style="font-size:20px;font-weight:800;color:'+(saldo>=0?'#1e40af':'var(--red)')+'">'+fmtBRL(saldo)+'</div></div>'+
+      '<div class="dash-card" style="padding:12px 14px"><div style="font-size:10px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Ticket médio PDV</div><div style="font-size:20px;font-weight:800;color:var(--gray-900)">'+fmtBRL(ticketMedioPdv)+'</div></div>';
+  }
+
+  // Receita por origem
+  var origemLabel = {pdv:'PDV', proposta:'Proposta', manual:'Manual'};
+  var origemCor = {pdv:'#5a8a0d', proposta:'#0c447c', manual:'#6b7280'};
+  var contOrigem = {pdv:0, proposta:0, manual:0};
+  receitas.forEach(function(r){ contOrigem[r.origem] = (contOrigem[r.origem]||0) + r.valor; });
+  // renderBarChart usa d.valor como número pra calcular a proporção da barra — aqui o rótulo
+  // exibido já vem formatado em R$, então usamos renderBarChartValorFmt (número separado do texto).
+  var dadosOrigemChart = Object.keys(contOrigem).filter(function(k){ return contOrigem[k]>0; })
+    .sort(function(a,b){ return contOrigem[b]-contOrigem[a]; })
+    .map(function(k){ return { label: origemLabel[k]+' — '+fmtBRL(contOrigem[k]), valor: contOrigem[k], cor: origemCor[k] }; });
+  var origemEl = document.getElementById('rel-fin-receita-origem');
+  if(origemEl) renderBarChartValorFmt(dadosOrigemChart, origemEl);
+
+  // Despesas por categoria
+  var contCategoria = Object.create(null);
+  ocorrenciasDespesa.forEach(function(o){ var c=o.categoria||'Outros'; contCategoria[c]=(contCategoria[c]||0)+o.valor; });
+  var dadosCategoria = Object.keys(contCategoria).sort(function(a,b){ return contCategoria[b]-contCategoria[a]; })
+    .map(function(k){ return { label: k+' — '+fmtBRL(contCategoria[k]), valor: contCategoria[k], cor: '#b91c1c' }; });
+  var catEl = document.getElementById('rel-fin-despesa-categoria');
+  if(catEl) renderBarChartValorFmt(dadosCategoria, catEl);
+
+  // Produtos mais vendidos no PDV (por quantidade, top 5)
+  var contProdutos = Object.create(null);
+  vendasPdvPeriodo.forEach(function(v){
+    (v.itens||[]).forEach(function(i){
+      contProdutos[i.nome] = (contProdutos[i.nome]||0) + (i.qtd||0);
+    });
+  });
+  var dadosProdutos = Object.keys(contProdutos).sort(function(a,b){ return contProdutos[b]-contProdutos[a]; })
+    .slice(0,5).map(function(k){ return { label: k, valor: contProdutos[k], cor: '#79B913' }; });
+  var prodEl = document.getElementById('rel-fin-produtos-pdv');
+  if(prodEl) renderBarChart(dadosProdutos, null, prodEl);
+}
+
+// Variante de renderBarChart pra quando o texto exibido (já formatado em R$) é diferente do
+// número usado pra calcular a proporção da barra — renderBarChart original mostra d.valor cru.
+function renderBarChartValorFmt(dados, container){
+  if(!dados.length){ container.innerHTML='<div style="color:var(--gray-400);font-size:12px;text-align:center;padding:20px">Nenhum dado no período</div>'; return; }
+  var max = Math.max.apply(null, dados.map(function(d){ return d.valor; }));
+  var html = '';
+  dados.forEach(function(d){
+    var pct = max > 0 ? Math.round((d.valor/max)*100) : 0;
+    html += '<div style="margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'+
+        '<span style="color:var(--gray-700);font-weight:600">'+escHtml(d.label)+'</span>'+
+      '</div>'+
+      '<div style="background:var(--gray-100);border-radius:4px;height:8px;overflow:hidden">'+
+        '<div style="background:'+(d.cor||'#185FA5')+';height:100%;width:'+pct+'%;border-radius:4px"></div>'+
+      '</div></div>';
+  });
+  container.innerHTML = html;
 }
 function renderBarChart(dados, corFn, container){
   if(!dados.length){ container.innerHTML='<div style="color:var(--gray-400);font-size:12px;text-align:center;padding:20px">Nenhum dado no período</div>'; return; }

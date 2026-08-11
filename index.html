@@ -772,7 +772,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 398</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 399</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -803,7 +803,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
               <div class="dash-card-val" id="dash-lev-pendentes">—</div>
             </div>
           </div>
-          <div class="dash-card" onclick="irPara('tasks')">
+          <div class="dash-card" onclick="irPara('tasks')" title="Tarefas urgentes/atrasadas + despesas vencendo hoje (essas últimas ficam na tela Despesas)">
             <div class="dash-card-top">
               <div>
                 <div class="dash-card-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg></div>
@@ -6116,6 +6116,26 @@ function backupDatasFixasDoMes(ano, mes){
     return dataLocalYMD(d);
   });
 }
+// Corrige tasks de backup antigas que caíram na lista errada por causa do bug do
+// TASKS_LISTAS_CONFIG[0] (a "lista de índice 0" por acaso é "Pendências com clientes" no seed
+// padrão, ordem:1 — não tem nada a ver com backup). Roda em QUALQUER ambiente (produção ou
+// staging) — diferente de lembreteBackup10DiasVerificar(), que só cria lembretes novos em
+// produção; aqui é uma correção de dado já existente, não deveria depender de ambiente.
+function corrigirListaTasksBackup(){
+  db.collection('tasks').where('tituloBackupAuto','==', true).get().then(function(qs){
+    var listaOutrosOk = TASKS_LISTAS_CONFIG.find(function(l){ return l.id==='outros'; });
+    if(!listaOutrosOk) return;
+    qs.docs.forEach(function(d2){
+      var t2 = d2.data();
+      if((t2.status||'pendente') !== 'concluida' && t2.listaId !== 'outros'){
+        db.collection('tasks').doc(d2.id).update({ listaId:'outros' }).then(function(){
+          var idx = todasTasksGlobal.findIndex(function(x){ return x.id === d2.id; });
+          if(idx>=0){ todasTasksGlobal[idx].listaId = 'outros'; renderTasks(); }
+        }).catch(function(e){ console.warn('Erro ao corrigir lista da task de backup:', e); });
+      }
+    });
+  }).catch(function(e){ console.warn('Erro ao checar tasks de backup:', e); });
+}
 function lembreteBackup10DiasVerificar(){
   if(!AMBIENTE_PRODUCAO) return;
   var agora = new Date();
@@ -6136,18 +6156,6 @@ function lembreteBackup10DiasVerificar(){
     // não lança uma nova (pedido do usuário) — só espera até ela ser marcada como feita.
     db.collection('tasks').where('tituloBackupAuto','==', true).get().then(function(qsExistente){
       db.doc('config/backup_status').set({ lembreteVerificadoEm: hojeStr }, {merge:true});
-      // Corrige tasks de backup antigas que caíram na lista errada por causa do bug do
-      // TASKS_LISTAS_CONFIG[0] (ver comentário abaixo) — só migra as que ainda estão
-      // pendentes, não mexe em concluídas (histórico não precisa mudar de lugar).
-      var listaOutrosOk = TASKS_LISTAS_CONFIG.find(function(l){ return l.id==='outros'; });
-      if(listaOutrosOk){
-        qsExistente.docs.forEach(function(d2){
-          var t2 = d2.data();
-          if((t2.status||'pendente') !== 'concluida' && t2.listaId !== 'outros'){
-            db.collection('tasks').doc(d2.id).update({ listaId:'outros' }).catch(function(e){ console.warn('Erro ao corrigir lista da task de backup:', e); });
-          }
-        });
-      }
       var jaTemAberta = qsExistente.docs.some(function(d2){ return (d2.data().status||'pendente') !== 'concluida'; });
       if(jaTemAberta) return;
       db.collection('tasks').add({
@@ -6171,6 +6179,9 @@ function lembreteBackup10DiasVerificar(){
 }
 setInterval(lembreteBackup10DiasVerificar, 60000);
 setTimeout(lembreteBackup10DiasVerificar, 8000);
+// Correção de dado (não depende de ambiente) — roda uma vez, com folga pra TASKS_LISTAS_CONFIG
+// e todasTasksGlobal já terem sido carregados pelos listeners.
+setTimeout(corrigirListaTasksBackup, 8000);
 
 // Migração única: unifica o antigo cadastro "tecnicos/" (só metadado, perfil sempre implícito)
 // numa nova coleção "usuarios/" com id = e-mail (necessário pra checagem de perfil no login e nas
@@ -7640,6 +7651,10 @@ function atualizarDashboard(){
   });
   var propAtivas = (typeof todasPropostasGlobal !== 'undefined' ? todasPropostasGlobal : []).filter(function(p){ return ['fechada','perdida'].indexOf(p.status||'') < 0; });
   var tasksDeHoje = (typeof todasTasksGlobal !== 'undefined' ? todasTasksGlobal : []).filter(function(t){ return taskEhUrgenteVisual(t, hojeKpi); });
+  // Despesas vencendo hoje somam no mesmo card "Tasks de Hoje" (pedido do usuário) — usa a
+  // mesma função que já alimenta a Agenda, só filtrando pro dia de hoje.
+  var hojeStrDash = dataLocalYMD(agora);
+  var despesasHojeDash = despesaOcorrenciasPendentesNoRange(hojeStrDash, hojeStrDash);
   var mesAtual = agora.getMonth(); var anoAtual = agora.getFullYear();
   var fechadosMes = (typeof todasPropostasGlobal !== 'undefined' ? todasPropostasGlobal : []).filter(function(p){
     if(p.status !== 'fechada' || !p.fechadaEm) return false;
@@ -7654,7 +7669,7 @@ function atualizarDashboard(){
   var elLQ = document.getElementById('dash-leads-quentes');
   var elTH = document.getElementById('dash-tasks-hoje');
   if(elLQ) elLQ.textContent = leadsDeHoje.length;
-  if(elTH) elTH.textContent = tasksDeHoje.length;
+  if(elTH) elTH.textContent = tasksDeHoje.length + despesasHojeDash.length;
   if(elOA) elOA.textContent = osAguardandoVisita.length;
   if(elLP){
     elLP.textContent = posvendaDeHoje.length;

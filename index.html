@@ -772,7 +772,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 402</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 403</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -6883,6 +6883,12 @@ function _tourPosicionar(passo){
   var spot = document.getElementById('tour-spotlight');
   var tip = document.getElementById('tour-tooltip');
   if(!el){ _tourAvancar(); return; } // elemento não encontrado nessa tela/perfil — pula o passo
+  // Precisa rolar ATÉ o elemento ANTES de medir a posição dele — se medir antes (como estava),
+  // a rolagem por scrollIntoView (que é assíncrona/animada) move o elemento de verdade DEPOIS
+  // do spotlight já ter sido posicionado com as coordenadas antigas, deixando a marcação
+  // "perdida" pra qualquer item que precise rolar pra ficar visível. behavior:'auto' (instantâneo,
+  // não suave) evita ter que esperar uma animação terminar antes de medir.
+  try{ el.scrollIntoView({block:'center', behavior:'auto'}); }catch(e){}
   var r = el.getBoundingClientRect();
   var pad = 8;
   spot.style.display = 'block';
@@ -6907,13 +6913,24 @@ function _tourPosicionar(passo){
   var left = Math.min(Math.max(10, r.left), window.innerWidth - tipW - 10);
   tip.style.top = top + 'px';
   tip.style.left = left + 'px';
-  try{ el.scrollIntoView({block:'center', behavior:'smooth'}); }catch(e){}
 }
 function _tourAvancar(){ _tourIdx++; _tourMostrarPasso(); }
 function _tourVoltar(){ if(_tourIdx > 0){ _tourIdx--; _tourMostrarPasso(); } }
 function _tourFinalizar(){
   document.getElementById('tour-spotlight').style.display = 'none';
   document.getElementById('tour-tooltip').style.display = 'none';
+  // Cada passo do tour usa scrollIntoView pra trazer o alvo pra tela — isso pode rolar tanto o
+  // conteúdo principal (#gestor-content) quanto a própria sidebar (#sidebar-gestor), e em alguns
+  // navegadores até a página como um todo, mesmo com #screen-app usando overflow:hidden no
+  // desktop. Sem resetar isso ao terminar, o usuário ficava "preso" rolado pra baixo, sem
+  // conseguir voltar com a barra de rolagem — só um F5 resolvia. Reseta tudo pro topo aqui.
+  ['gestor-content','sidebar-gestor','main-content-tecnico'].forEach(function(idEl){
+    var elScroll = document.getElementById(idEl);
+    if(elScroll) elScroll.scrollTop = 0;
+  });
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
   // localStorage, não Firestore: as regras só deixam o GESTOR escrever em usuarios/ (mesmo o
   // próprio registro), então um técnico marcando "concluí o tour" ali daria permission-denied
   // silenciosamente e o tour voltaria a aparecer a cada login. Fica por navegador/dispositivo,

@@ -772,7 +772,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 399</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 400</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -5591,6 +5591,11 @@ function iniciarListenerTasksListas(){
     TASKS_LISTAS_CONFIG = (d.listas||[]).slice().sort(function(a,b){ return (a.ordem||0)-(b.ordem||0); });
     popularSelectListaTask();
     renderTasks();
+    // Correção de dado (task de backup na lista errada) — precisa de TASKS_LISTAS_CONFIG já
+    // carregado E do usuário autenticado, por isso roda aqui dentro (não mais via setTimeout
+    // solto no carregamento do script, que rodava ANTES do login e falhava silenciosamente
+    // contra as regras do Firestore). _corrigidoBackupTasks garante que só roda uma vez por sessão.
+    if(!window._corrigidoBackupTasks){ window._corrigidoBackupTasks = true; corrigirListaTasksBackup(); }
   }, function(e){ console.warn('listener tasks_listas:', e); });
   unsubs.push(u);
 }
@@ -6179,9 +6184,6 @@ function lembreteBackup10DiasVerificar(){
 }
 setInterval(lembreteBackup10DiasVerificar, 60000);
 setTimeout(lembreteBackup10DiasVerificar, 8000);
-// Correção de dado (não depende de ambiente) — roda uma vez, com folga pra TASKS_LISTAS_CONFIG
-// e todasTasksGlobal já terem sido carregados pelos listeners.
-setTimeout(corrigirListaTasksBackup, 8000);
 
 // Migração única: unifica o antigo cadastro "tecnicos/" (só metadado, perfil sempre implícito)
 // numa nova coleção "usuarios/" com id = e-mail (necessário pra checagem de perfil no login e nas
@@ -7748,15 +7750,18 @@ function atualizarDashboard(){
     var pvCfg = POSVENDA_ETAPAS[p.etapaAtual]||{label:'Pós-venda'};
     return { tipo:'posvenda', data:p.proximoFollowup, hora:'', label:p.cliente||'Cliente', sub:pvCfg.label, id:p.id, cor: p.etapaAtual==='problema_aberto' ? 'var(--red)' : '#0e7490' };
   });
+  // Tasks urgentes/atrasadas já aparecem em "Ações pendentes" — não duplica aqui. Só as que têm
+  // data marcada mas ainda NÃO são urgentes (ex: prazo daqui a 3 dias) aparecem em "Próximos eventos".
   var proximosTasks = (todasTasksGlobal||[]).filter(function(t){
     if((t.status||'pendente')==='concluida') return false;
+    if(taskEhUrgenteVisual(t, hoje)) return false;
     var dataEfetiva = taskDataAgenda(t);
     if(!dataEfetiva) return false;
     var d = new Date(dataEfetiva + 'T12:00:00');
     return d >= hoje && d <= janela7;
   }).map(function(t){
     var listaCfgDash = TASKS_LISTAS_CONFIG.find(function(l){ return l.id===t.listaId; });
-    return { tipo:'task', data:taskDataAgenda(t), hora:'', label:t.titulo||'Tarefa', sub:listaCfgDash?listaCfgDash.nome:'Tarefa', id:t.id, cor: taskEhUrgenteVisual(t, hoje) ? 'var(--red)' : '#047857' };
+    return { tipo:'task', data:taskDataAgenda(t), hora:'', label:t.titulo||'Tarefa', sub:listaCfgDash?listaCfgDash.nome:'Tarefa', id:t.id, cor: '#047857' };
   });
   var proximosLeadsFilt = proximosLeads.filter(function(ev){
     var l = todasLeadsGlobal.find(function(x){ return x.id===ev.id; });
@@ -7934,6 +7939,17 @@ function atualizarDashboard(){
       });
     });
 
+    // 6) Despesas vencidas ou vencendo hoje, ainda não pagas
+    despesaOcorrenciasPendentesNoRange('1970-01-01', dataLocalYMD(hojeAc)).forEach(function(o){
+      var atrasada = o.vencimento < dataLocalYMD(hojeAc);
+      itensAcao.push({
+        tipo:'despesa', id:o.id, urgente: atrasada,
+        cliente: o.descricao, numero:'',
+        motivo: atrasada ? 'Vencimento atrasado' : 'Vence hoje',
+        tagExtra:'Despesa'
+      });
+    });
+
     // Urgentes (vermelho) primeiro, depois o restante — limitar aos 8 mais relevantes
     itensAcao.sort(function(a,b){ return (b.urgente?1:0) - (a.urgente?1:0); });
     var acoes = itensAcao.slice(0,8);
@@ -7953,6 +7969,7 @@ function atualizarDashboard(){
           else if(item.tipo==='lead'){ agTooltipShow({tipo:'lead',id:item.id}, e); }
           else if(item.tipo==='posvenda'){ agTooltipShow({tipo:'posvenda',id:item.id}, e); }
           else if(item.tipo==='task'){ agTooltipShow({tipo:'task',id:item.id}, e); }
+          else if(item.tipo==='despesa'){ agTooltipShow({tipo:'despesa',id:item.id}, e); }
         };
         div.onmouseout = function(){ this.style.background=''; agTooltipHide(); };
         div.onclick = function(){
@@ -7961,6 +7978,7 @@ function atualizarDashboard(){
           else if(item.tipo==='lead'){ abrirDetalheLead(item.id); }
           else if(item.tipo==='task'){ irPara('tasks'); setTimeout(function(){ abrirTaskDetalhe(item.id); }, 200); }
           else if(item.tipo==='posvenda'){ irPara('posvenda'); }
+          else if(item.tipo==='despesa'){ irPara('despesas'); setTimeout(function(){ abrirModalDespesa(item.id); }, 250); }
         };
         var numHtml = item.numero ? '#' + item.numero + ' &middot; ' : '';
         div.innerHTML = '<div style="width:8px;height:8px;border-radius:50%;background:' + cor + ';flex-shrink:0"></div>' +
@@ -8369,7 +8387,7 @@ function renderizarAgendaMes(corpo){
       despesasPendentesMes.filter(function(o){ return o.vencimento === dataStr; }).forEach(function(o){
         html += '<div class="agenda-os-pill" style="background:#fce7f3;color:#9d174d;border-left:3px solid #db2777" data-despesaid="'+o.id+'" data-despesavenc="'+o.vencimento+'" onclick="event.stopPropagation();irPara(\'despesas\');setTimeout(function(){abrirModalDespesa(\''+o.id.replace(/\'/g,"\\'")+'\');},250)">💰 Vence hoje: '+escHtml(o.descricao)+'</div>';
       });
-      despesasPendentesMes.filter(function(o){ return diaAnteriorStr(o.vencimento) === dataStr; }).forEach(function(o){
+      despesasPendentesMes.filter(function(o){ return diaAnteriorStr(o.vencimento) === dataStr && (!o.criadoEmStr || dataStr >= o.criadoEmStr); }).forEach(function(o){
         html += '<div class="agenda-os-pill" style="background:#fef2f2;color:#b91c1c;border-left:3px solid #dc2626" data-despesaid="'+o.id+'" data-despesavenc="'+o.vencimento+'" onclick="event.stopPropagation();irPara(\'despesas\');setTimeout(function(){abrirModalDespesa(\''+o.id.replace(/\'/g,"\\'")+'\');},250)">⚠ Vence amanhã: '+escHtml(o.descricao)+'</div>';
       });
     }
@@ -8471,7 +8489,7 @@ function renderizarAgendaSemana(corpo){
         despesasPendentesSemana.filter(function(o){ return o.vencimento === dataStr; }).forEach(function(o){
           html += '<div style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:4px;background:#fce7f3;color:#9d174d;border-left:3px solid #db2777;margin-bottom:2px;cursor:pointer" data-despesaid="'+o.id+'" data-despesavenc="'+o.vencimento+'" onclick="event.stopPropagation();irPara(\'despesas\');setTimeout(function(){abrirModalDespesa(\''+o.id.replace(/\'/g,"\\'")+'\');},250)">💰 Vence hoje: '+escHtml(o.descricao)+'</div>';
         });
-        despesasPendentesSemana.filter(function(o){ return diaAnteriorStr(o.vencimento) === dataStr; }).forEach(function(o){
+        despesasPendentesSemana.filter(function(o){ return diaAnteriorStr(o.vencimento) === dataStr && (!o.criadoEmStr || dataStr >= o.criadoEmStr); }).forEach(function(o){
           html += '<div style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:4px;background:#fef2f2;color:#b91c1c;border-left:3px solid #dc2626;margin-bottom:2px;cursor:pointer" data-despesaid="'+o.id+'" data-despesavenc="'+o.vencimento+'" onclick="event.stopPropagation();irPara(\'despesas\');setTimeout(function(){abrirModalDespesa(\''+o.id.replace(/\'/g,"\\'")+'\');},250)">⚠ Vence amanhã: '+escHtml(o.descricao)+'</div>';
         });
       }
@@ -19575,18 +19593,28 @@ function excluirReceitaManual(id){
 // vencimento cai no intervalo, com pago/dataPagamento/valor lidos do mapa despesa.pagamentos
 // (chave 'YYYY-MM') — só existe entrada nesse mapa pros meses já marcados como pagos.
 function despesaOcorrenciasNoPeriodo(despesa, de, ate){
+  // criadoEmStr identifica quando a despesa nasceu — usado abaixo pra nunca gerar ocorrência
+  // RECORRENTE (nem o alerta "1 dia antes", de nenhum tipo) pra uma data anterior à criação.
+  // Despesas antigas sem criadoEm (gravadas antes dessa correção) não têm esse corte, pra não
+  // sumir retroativamente com dado que já existia.
+  var criadoEmStr = (despesa.criadoEm && despesa.criadoEm.toDate) ? dataLocalYMD(despesa.criadoEm.toDate()) : null;
   if(!despesa.recorrente){
     if(!despesa.dataVencimento) return [];
     if(despesa.dataVencimento < de || despesa.dataVencimento > ate) return [];
+    // Avulsa NÃO tem a data de vencimento limitada pela criação — um lançamento manual de uma
+    // conta já vencida (ex: "esqueci de registrar o aluguel do mês passado") é um uso legítimo.
     return [{ id:despesa.id, chaveOcorrencia:despesa.id, descricao:despesa.descricao, valor:despesa.valor||0,
       categoria:despesa.categoria, vencimento:despesa.dataVencimento, pago:!!despesa.pago,
-      dataPagamento:despesa.dataPagamento||null, recorrente:false }];
+      dataPagamento:despesa.dataPagamento||null, recorrente:false, criadoEmStr:criadoEmStr }];
   }
   if(despesa.ativo === false) return [];
+  // Recorrente SIM é limitada pela criação — o "modelo" só passou a existir a partir de quando
+  // foi cadastrado, então não faz sentido gerar a ocorrência (nem o alerta) de meses anteriores.
+  var deEfetivo = (criadoEmStr && criadoEmStr > de) ? criadoEmStr : de;
   var out = [];
-  var cursor = new Date((de||'1970-01-01')+'T12:00:00');
+  var cursor = new Date((deEfetivo||'1970-01-01')+'T12:00:00');
   cursor = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-  var dFim = new Date((ate||de)+'T12:00:00');
+  var dFim = new Date((ate||deEfetivo)+'T12:00:00');
   var guard = 0;
   while(cursor <= dFim && guard < 120){
     guard++;
@@ -19594,13 +19622,13 @@ function despesaOcorrenciasNoPeriodo(despesa, de, ate){
     var ultimoDiaMes = new Date(ano, mes+1, 0).getDate();
     var dia = Math.min(despesa.diaVencimento||1, ultimoDiaMes);
     var vencStr = ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(dia).padStart(2,'0');
-    if(vencStr >= de && vencStr <= ate){
+    if(vencStr >= deEfetivo && vencStr <= ate){
       var ym = ano+'-'+String(mes+1).padStart(2,'0');
       var pagInfo = (despesa.pagamentos||{})[ym] || null;
       out.push({ id:despesa.id, chaveOcorrencia:despesa.id+'_'+ym, descricao:despesa.descricao,
         valor:(pagInfo && pagInfo.valorPago!=null) ? pagInfo.valorPago : (despesa.valor||0),
         categoria:despesa.categoria, vencimento:vencStr, pago:!!(pagInfo && pagInfo.pago),
-        dataPagamento: pagInfo ? pagInfo.dataPagamento : null, recorrente:true, ym:ym });
+        dataPagamento: pagInfo ? pagInfo.dataPagamento : null, recorrente:true, ym:ym, criadoEmStr:criadoEmStr });
     }
     cursor.setMonth(cursor.getMonth()+1);
   }
@@ -19722,6 +19750,10 @@ function salvarDespesa(){
   } else {
     if(!recorrente) dados.pago = false;
     else dados.pagamentos = {};
+    // criadoEm nunca era gravado — é a causa raiz do "alerta retroativo": sem saber quando a
+    // despesa nasceu, despesaOcorrenciasNoPeriodo não tinha como saber que não deveria gerar
+    // ocorrência/alerta pra datas anteriores à criação.
+    dados.criadoEm = firebase.firestore.FieldValue.serverTimestamp();
     db.collection('financeiro_lancamentos').add(dados).then(function(ref){
       // Mesma condição de corrida do salvarReceitaManual — ver comentário lá.
       if(!todasFinanceiroGlobal.some(function(x){ return x.id===ref.id; })){

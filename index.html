@@ -772,7 +772,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 403</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 404</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -3649,6 +3649,12 @@ function irPara(tela){
   document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   var el = document.getElementById('screen-' + tela);
   if(el) el.classList.add('active');
+  // Todas as telas dividem o mesmo container rolável (#gestor-content / #main-content-tecnico)
+  // — sem resetar aqui, rolar bem pra baixo numa tela (ex: Orçamentos, Gerador de Propostas) e
+  // depois trocar de tela pelo menu "vazava" a posição antiga pra tela nova, dando a sensação
+  // de ficar preso sem conseguir ver o topo (o "bug do topo" reportado pelo usuário).
+  var contRolavel = document.getElementById('gestor-content') || document.getElementById('main-content-tecnico');
+  if(contRolavel) contRolavel.scrollTop = 0;
   // Saiu do Gerador sem ter ido pra outro orçamento por dentro dele (ex: navegou pelo menu) →
   // fecha o editor em memória. Sem isso, um orçamento/proposta que foi fechado ou perdido em
   // outra tela continuava aberto e editável (com "Salvar" habilitado) se o gestor voltasse pro
@@ -19019,7 +19025,7 @@ function enviarPropostaSimplesWhatsApp(propostaId, orcamentoIdFallback){
   waObterTokenProposta(ctx.prop).then(function(token){
     return waMontarSnapshotProposta(ctx).then(function(snapshot){
       return waSalvarSnapshotPublico(token, snapshot).then(function(jaExistia){
-        var link = 'https://safezonesmart.com.br/propostas-comerciais/ver-proposta.html?id='+token;
+        var link = 'https://hub.safezonesmart.com.br/propostas-comerciais/ver-proposta.html?id='+token;
         var msg = 'Olá, '+ctx.cliente+'! Segue a proposta da SafeZone Smart para '+snapshot.servico+':\n'+link+'\n\nCaso tenha alguma dúvida, é só chamar por aqui!\nNo final da proposta tem um botão para dar prosseguimento e agendarmos a instalação.';
         window.open('https://wa.me/55'+ctx.digits+'?text='+encodeURIComponent(msg), '_blank');
         gravarEventoOrc(ctx.prop.orcamentoId||orcamentoIdFallback, 'link_proposta_enviado', 'Link da proposta ('+snapshot.servico+') enviado via WhatsApp para '+ctx.cliente+(jaExistia?' (atualização do mesmo link)':''));
@@ -19037,7 +19043,7 @@ function enviarParaAceiteWhatsApp(propostaId, orcamentoIdFallback){
   waObterTokenProposta(ctx.prop).then(function(token){
     return waMontarSnapshotProposta(ctx).then(function(snapshot){
       return waSalvarSnapshotPublico(token, snapshot).then(function(){
-        var linkAceite = 'https://safezonesmart.com.br/propostas-comerciais/aceite-proposta.html?id='+token;
+        var linkAceite = 'https://hub.safezonesmart.com.br/propostas-comerciais/aceite-proposta.html?id='+token;
         var msg = 'Olá, '+ctx.cliente+'! Pra formalizar o fechamento da proposta de '+snapshot.servico+' (R$ '+Number(snapshot.totalGeral||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'), é só confirmar no link abaixo:\n'+linkAceite;
         window.open('https://wa.me/55'+ctx.digits+'?text='+encodeURIComponent(msg), '_blank');
         toast('Link de aceite gerado e WhatsApp aberto!','success');

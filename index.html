@@ -346,12 +346,17 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
 .dash-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 /* ── LEADS KANBAN ── */
 .leads-kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
+/* Grid tracks (e min-width padrão de flex/grid items é "auto", que usa o tamanho intrínseco do
+   conteúdo como piso) — sem isso, um nome de lead comprido em nowrap fazia a COLUNA inteira
+   esticar pra caber o texto, quebrando a proporção dos cards, em vez do "..." (ellipsis) do
+   .lead-card-nome realmente cortar o texto como já estava programado pra fazer. */
+.leads-kanban > div{min-width:0}
 .kanban-col{background:var(--gray-50);border-radius:12px;border:1px solid var(--gray-200);min-height:232px;display:flex;flex-direction:column}
 .kanban-col-header{padding:10px 14px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;gap:8px}
 .kanban-col-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--gray-700)}
 .kanban-col-count{font-size:10px;font-weight:700;background:var(--gray-200);color:var(--gray-500);border-radius:20px;padding:1px 7px;margin-left:auto}
 .kanban-col-body{padding:10px;display:flex;flex-direction:column;gap:8px;flex:1}
-.lead-card{background:#fff;border-radius:10px;border:1px solid var(--gray-200);padding:12px;cursor:pointer;transition:box-shadow .15s,border-color .15s;position:relative;min-height:168px}
+.lead-card{background:#fff;border-radius:10px;border:1px solid var(--gray-200);padding:12px;cursor:pointer;transition:box-shadow .15s,border-color .15s;position:relative;min-height:168px;min-width:0}
 .lead-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.08);border-color:var(--gray-300)}
 .lead-card.followup-vencido{border-left:3px solid var(--red)!important;border-color:var(--red)}
 .lead-card.followup-hoje{border-left:3px solid #f59e0b!important;border-color:#f59e0b}
@@ -773,7 +778,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 405</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 406</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -3759,9 +3764,38 @@ function fazerLogin(){
     });
 }
 
+// ── Timeout de sessão por inatividade (8h) ──
+// Firebase Auth por padrão persiste indefinidamente (sobrevive até fechar o navegador e reabrir
+// dias depois) — pedido do usuário pra não manter isso sem limite. Guarda o timestamp da última
+// interação real no localStorage (não em variável JS, que reseta ao recarregar a página — o
+// cenário que mais importa é justamente "fechei o notebook e voltei 10h depois"). Checa tanto no
+// boot (auth.onAuthStateChanged) quanto periodicamente enquanto a aba fica aberta e ociosa.
+var SESSAO_TIMEOUT_MS = 8 * 60 * 60 * 1000; // 8 horas
+function sessaoRegistrarAtividade(){
+  try{ localStorage.setItem('sz_ultima_atividade', String(Date.now())); }catch(e){}
+}
+function sessaoExpirada(){
+  try{
+    var ultima = parseInt(localStorage.getItem('sz_ultima_atividade'), 10);
+    return !!ultima && (Date.now() - ultima) > SESSAO_TIMEOUT_MS;
+  }catch(e){ return false; }
+}
+function sessaoLimparAtividade(){
+  try{ localStorage.removeItem('sz_ultima_atividade'); }catch(e){}
+}
+// Throttle pra não gravar no localStorage a cada pixel de mouse — só uma vez a cada 30s de uso ativo.
+var _sessaoUltimoRegistro = 0;
+['mousedown','keydown','touchstart','wheel'].forEach(function(evt){
+  window.addEventListener(evt, function(){
+    var agora = Date.now();
+    if(agora - _sessaoUltimoRegistro > 30000){ _sessaoUltimoRegistro = agora; sessaoRegistrarAtividade(); }
+  }, {passive:true});
+});
+
 function fazerLogout(){
   unsubs.forEach(function(u){ u(); }); unsubs = [];
   _gestorIniciado = false;
+  sessaoLimparAtividade();
   auth.signOut();
 }
 
@@ -3786,6 +3820,13 @@ function determinarPerfilUsuario(user){
 
 auth.onAuthStateChanged(function(user){
   if(user){
+    // Sessão expirada por inatividade (>8h) — desloga direto, sem nem chegar a revelar o app.
+    // Precisa vir ANTES de qualquer outra coisa, senão o usuário vê a tela por um instante.
+    if(sessaoExpirada()){
+      sessaoLimparAtividade();
+      auth.signOut();
+      return;
+    }
     usuarioAtual = user;
     determinarPerfilUsuario(user).then(function(perfil){
     // Conta desativada pela tela Usuários — nunca deixa passar da tela de login, exceto o(s)
@@ -3802,6 +3843,14 @@ auth.onAuthStateChanged(function(user){
     // boas-vindas (login de verdade, clicado agora).
     function revelarApp(){
     document.getElementById('screen-auth').style.display = 'none';
+    // Sessão "recém-confirmada válida" — zera o relógio de inatividade aqui (login novo ou
+    // reabertura dentro da janela de 8h). A checagem periódica abaixo cuida do resto.
+    sessaoRegistrarAtividade();
+    if(!window._sessaoIntervalId){
+      window._sessaoIntervalId = setInterval(function(){
+        if(sessaoExpirada()){ toast('Sessão encerrada por inatividade.', 'error'); fazerLogout(); }
+      }, 5 * 60 * 1000); // checa a cada 5 min — suficiente pra 8h de tolerância, sem gastar bateria à toa
+    }
     if(perfilAtual === 'gestor'){
       // Gestor precisa de altura fixa de viewport com scroll interno — a sidebar fica fixa
       // enquanto só o conteúdo (#gestor-content) rola por dentro.
@@ -5314,7 +5363,8 @@ function gerarKitRapido(){
       osId:'', osNumero:'', osCliente:cliente, numCameras:qtdCameras, marca:kit.marca,
       tipoServico:'CFTV', itens:kit.itens, valorServicos:kit.valorServicos, totalGeral:kit.totalGeral,
       obs:'Proposta estimativa gerada via Kit Rápido.', manual:true, versao:1, status:'aguardando_envio',
-      propostaEnviada:false, contatos:[], proximoFollowup:'', geradaEm:firebase.firestore.FieldValue.serverTimestamp()
+      propostaEnviada:false, contatos:[], proximoFollowup:'', geradaEm:firebase.firestore.FieldValue.serverTimestamp(),
+      viaKitRapido: true
     };
   });
   gpKitAnexarAoOrcamentoAtual('CFTV', propsData, 'modal-kit-rapido', btn).catch(function(e){
@@ -5499,7 +5549,8 @@ function gerarKitRapidoCercaEletrica(){
       tecnologia:kit.tec, marca:(tipoHaste==='industrial'?'Industrial':'Normal'), tipoServico:'Cerca Elétrica',
       itens:kit.itens, valorServicos:kit.valorServicos, totalGeral:kit.totalGeral,
       obs:'Proposta estimativa gerada via Kit Rápido.', manual:true, versao:1, status:'aguardando_envio',
-      propostaEnviada:false, contatos:[], proximoFollowup:'', geradaEm:firebase.firestore.FieldValue.serverTimestamp()
+      propostaEnviada:false, contatos:[], proximoFollowup:'', geradaEm:firebase.firestore.FieldValue.serverTimestamp(),
+      viaKitRapido: true
     };
   });
   gpKitAnexarAoOrcamentoAtual('Cerca Elétrica', propsData, 'modal-kit-rapido-cerca', btn).catch(function(e){
@@ -6812,8 +6863,20 @@ function visitaAtualDoOrc(orc){
 // nunca era escrito de verdade em lugar nenhum do código desde a rodada 318 — quando o Kit Rápido
 // parou de criar orçamento do zero e passou só a anexar proposta a um já existente — então esse
 // badge "≈" nunca aparecia. Esta função substitui aquele campo morto por um cálculo ao vivo).
+// Antes, "estimativa" era simplesmente "não tem Visita de Avaliação ainda" — mas isso rotulava
+// como estimativa até orçamentos montados manualmente no Gerador de Propostas (que não têm nada
+// de "estimado", só ainda não tiveram visita). Regra corrigida: só é estimativa se, ALÉM de não
+// ter visita, pelo menos uma proposta vinculada tiver vindo do Kit Rápido de verdade. O fallback
+// no texto do "obs" cobre propostas geradas por Kit Rápido ANTES dessa correção (rodada 406),
+// que não tinham o campo viaKitRapido gravado ainda.
 function orcEhEstimativa(orc){
-  return !(orc && orc.visitas && orc.visitas.length);
+  if(!orc || (orc.visitas && orc.visitas.length)) return false;
+  var propsDoOrc = (orc.propostaIds||[]).map(function(pid){
+    return (typeof todasPropostasGlobal !== 'undefined' ? todasPropostasGlobal : []).find(function(p){ return p.id === pid; });
+  }).filter(Boolean);
+  return propsDoOrc.some(function(p){
+    return p.viaKitRapido === true || (p.obs && p.obs.indexOf('gerada via Kit Rápido') >= 0);
+  });
 }
 
 // Nome do técnico da visita — cobre tanto o campo novo (tecnicoNome, rodada 302+) quanto o

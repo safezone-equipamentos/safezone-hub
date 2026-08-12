@@ -447,6 +447,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
    flex:1 (que dependia da altura travada) e passa a ter altura natural pelo conteúdo. */
 @media(max-width:640px){
   #btn-menu-mobile{display:inline-flex!important;align-items:center;justify-content:center}
+  html,body{overflow-y:visible!important}
   #screen-app{height:auto!important;min-height:100vh!important;overflow:visible!important}
   #gestor-shell{height:auto!important;overflow:visible!important;display:block!important}
   #gestor-content{height:auto!important;overflow:visible!important;width:100%!important}
@@ -772,7 +773,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 404</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 405</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -3805,6 +3806,15 @@ auth.onAuthStateChanged(function(user){
       // Gestor precisa de altura fixa de viewport com scroll interno — a sidebar fica fixa
       // enquanto só o conteúdo (#gestor-content) rola por dentro.
       document.getElementById('screen-app').style.cssText = 'display:flex;flex-direction:column;width:100%;height:100vh;overflow:hidden';
+      // html/body nunca travavam overflow-y (só o -x) — em qualquer situação onde algum
+      // conteúdo interno vazasse 1px além de 100vh (ex: layouts complexos como o Gerador de
+      // Propostas), a PÁGINA INTEIRA ganhava um scroll nativo que não deveria existir, e como o
+      // topbar é sticky dentro de #screen-app (não do body), ele "descolava" da posição certa —
+      // o bug do "menu superior bugado" reportado pelo usuário. Trava aqui, só pro Gestor —
+      // o @media(max-width:640px) já libera de volta com !important pro mobile, e o Técnico
+      // nunca passa por aqui (precisa do scroll natural da página, ver comentário no else).
+      document.documentElement.style.overflowY = 'hidden';
+      document.body.style.overflowY = 'hidden';
     } else {
       // Técnico é uma página simples empilhada — deixa a própria janela rolar naturalmente
       // (barra de rolagem na borda real da página), sem forçar altura de viewport nem

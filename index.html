@@ -781,7 +781,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 409</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 410</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -2572,6 +2572,27 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
     <div class="modal-body">
       <div class="form-group"><label class="form-label">Data de pagamento</label><input type="date" class="form-input" id="despesa-pagar-data"></div>
       <button class="btn btn-primary" style="width:100%" onclick="confirmarDespesaPaga()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Evento externo do Google Calendar (não criado pelo HUB) — edição/exclusão direta, sem
+     marcar o evento como "veio do HUB" (ver comentário em salvarEventoExternoGoogle). -->
+<div class="modal-overlay" id="modal-evento-externo">
+  <div class="modal" style="width:380px;max-width:96vw">
+    <div class="modal-header">
+      <span class="modal-title">🌐 Evento externo (Google Calendar)</span>
+      <button class="modal-close" data-fecha="modal-evento-externo">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:12px"><label class="form-label">Título</label><input type="text" class="form-input" id="evext-titulo" onfocus="this.select()"></div>
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="flex:1"><label class="form-label">Data</label><input type="date" class="form-input" id="evext-data"></div>
+        <div class="form-group" style="flex:1"><label class="form-label">Hora (opcional)</label><input type="time" class="form-input" id="evext-hora"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px"><label class="form-label">Descrição</label><textarea class="form-textarea" id="evext-descricao" rows="3" style="resize:vertical"></textarea></div>
+      <button class="btn btn-primary" id="btn-salvar-evento-externo" style="width:100%" onclick="salvarEventoExternoGoogle()">Salvar</button>
+      <button class="btn btn-secondary" style="width:100%;margin-top:8px;color:var(--red)" onclick="excluirEventoExternoGoogle()">Excluir evento</button>
     </div>
   </div>
 </div>
@@ -8660,7 +8681,7 @@ function agendaMesclarEventosExternos(deStr, ateStr){
       pill.style.cssText = 'background:#e0f2fe;color:#0c4a6e;border-left:3px solid #0ea5e9';
       pill.dataset.googleEventId = ev.id;
       pill.textContent = '🌐 ' + ev.titulo;
-      pill.onclick = function(e){ e.stopPropagation(); };
+      pill.onclick = function(e){ e.stopPropagation(); abrirModalEventoExterno(ev.id); };
       celula.appendChild(pill);
     });
   });
@@ -19701,6 +19722,7 @@ var _googleTokenClient = null;
 var _googleAccessToken = null;
 var _googleTokenExpiraEm = 0;
 var _googleEventosExternosCache = {}; // chave 'YYYY-MM-DD_YYYY-MM-DD' → array de eventos (evita rebuscar toda hora)
+var _googleEventosExternosDetalhe = {}; // id do evento → dados completos (título/data/hora/descrição), pro modal de edição
 
 function googleCalendarInicializarClient(){
   if(_googleTokenClient) return true;
@@ -19824,13 +19846,81 @@ function googleCalendarBuscarExternos(deStr, ateStr, callback){
         var itens = (data.items||[]).filter(function(ev){
           return !(ev.extendedProperties && ev.extendedProperties.private && ev.extendedProperties.private.origemSafezoneHub === 'true');
         }).map(function(ev){
-          var dataStr = ev.start ? (ev.start.date || (ev.start.dateTime||'').slice(0,10)) : '';
-          return { id: ev.id, titulo: ev.summary || '(sem título)', data: dataStr, diaInteiro: !!ev.start.date };
+          var diaInteiro = !!ev.start.date;
+          var dataStr = diaInteiro ? ev.start.date : (ev.start.dateTime||'').slice(0,10);
+          var horaStr = diaInteiro ? '' : (ev.start.dateTime||'').slice(11,16);
+          var item = { id: ev.id, titulo: ev.summary || '(sem título)', data: dataStr, hora: horaStr, diaInteiro: diaInteiro, descricao: ev.description||'' };
+          _googleEventosExternosDetalhe[ev.id] = item; // pro modal de edição buscar sem precisar refazer a chamada
+          return item;
         }).filter(function(ev){ return ev.data; });
         _googleEventosExternosCache[chaveCache] = itens;
         callback(itens);
       }).catch(function(e){ console.warn('Erro ao buscar eventos externos do Google Calendar:', e); callback([]); });
   }, function(){ callback([]); });
+}
+
+// ── Edição de evento EXTERNO (não criado pelo HUB) ──
+// Diferente de googleCalendarSalvarEvento (usado pra OS/Visita/Task), aqui NÃO marca o evento
+// com extendedProperties.private.origemSafezoneHub — se marcasse, o evento passaria a ser
+// tratado como "nosso" na próxima leitura (o filtro de pull exclui tudo que já tem esse
+// marcador), sumindo da lista de "Externo" mesmo sem ter sido criado pelo HUB de verdade.
+var _eventoExternoIdEmEdicao = null;
+function abrirModalEventoExterno(googleEventId){
+  var ev = _googleEventosExternosDetalhe[googleEventId];
+  if(!ev){ toast('Não foi possível carregar os dados desse evento.', 'error'); return; }
+  _eventoExternoIdEmEdicao = googleEventId;
+  document.getElementById('evext-titulo').value = ev.titulo || '';
+  document.getElementById('evext-data').value = ev.data || '';
+  document.getElementById('evext-hora').value = ev.hora || '';
+  document.getElementById('evext-descricao').value = ev.descricao || '';
+  var btn = document.getElementById('btn-salvar-evento-externo'); btn.disabled = false; btn.textContent = 'Salvar';
+  document.getElementById('modal-evento-externo').classList.add('open');
+}
+
+function googleCalendarSalvarEventoExterno(googleEventId, dadosEvento, onSucesso, onErro){
+  googleCalendarGarantirToken(function(){
+    fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/'+googleEventId, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer '+_googleAccessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify(dadosEvento)
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(data && data.id && onSucesso) onSucesso(data);
+      else { console.warn('Google Calendar recusou a edição:', data && data.error); toast('Erro ao salvar no Google Calendar.', 'error'); if(onErro) onErro(); }
+    }).catch(function(e){ console.warn('Erro de rede ao editar evento externo:', e); toast('Erro de rede ao salvar.', 'error'); if(onErro) onErro(); });
+  }, function(){ toast('Reconecte o Google Calendar pra editar este evento.', 'error'); if(onErro) onErro(); });
+}
+
+function salvarEventoExternoGoogle(){
+  var btn = document.getElementById('btn-salvar-evento-externo');
+  if(btn.disabled) return;
+  var titulo = document.getElementById('evext-titulo').value.trim();
+  var data = document.getElementById('evext-data').value;
+  var hora = document.getElementById('evext-hora').value;
+  var descricao = document.getElementById('evext-descricao').value.trim();
+  if(!titulo){ toastCampo('Informe um título.', 'evext-titulo'); return; }
+  if(!data){ toastCampo('Informe a data.', 'evext-data'); return; }
+  var dadosEvento = { summary: titulo, description: descricao };
+  if(hora){ dadosEvento.start = { dateTime: new Date(data+'T'+hora+':00').toISOString() }; dadosEvento.end = { dateTime: new Date(new Date(data+'T'+hora+':00').getTime()+60*60000).toISOString() }; }
+  else { dadosEvento.start = { date: data }; dadosEvento.end = { date: data }; }
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  googleCalendarSalvarEventoExterno(_eventoExternoIdEmEdicao, dadosEvento, function(){
+    toast('Evento atualizado no Google Calendar!');
+    fecharModal('modal-evento-externo');
+    _googleEventosExternosCache = {}; // dados mudaram, próxima leitura precisa ser fresca
+    if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
+  }, function(){
+    btn.disabled = false; btn.textContent = 'Salvar'; // só reabilita em caso de erro — sucesso já fecha o modal
+  });
+}
+
+function excluirEventoExternoGoogle(){
+  if(!_eventoExternoIdEmEdicao) return;
+  if(!confirm('Excluir este evento do Google Calendar? Esta ação não pode ser desfeita.')) return;
+  googleCalendarExcluirEvento(_eventoExternoIdEmEdicao);
+  toast('Evento excluído.');
+  fecharModal('modal-evento-externo');
+  _googleEventosExternosCache = {};
+  if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
 }
 
 // Tenta reconectar sozinho no boot se já esteve conectado antes (sem popup — se falhar, o

@@ -10,6 +10,9 @@
      pelo pedido automático que os navegadores fazem em /favicon.ico por padrão. Enquanto o
      arquivo não existir lá, o navegador cai silenciosamente pro ícone padrão — não trava nada. -->
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
+<!-- Google Identity Services — só o client de token OAuth (nenhuma biblioteca gapi.client
+     pesada; as chamadas de API do Calendar são feitas via fetch() direto, mais simples). -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -778,7 +781,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 406</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 408</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -1336,6 +1339,8 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#3a6b0d"><span style="width:12px;height:12px;border-radius:3px;background:#79B913;display:inline-block"></span>Instalação</span>
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#1e40af"><span style="width:12px;height:12px;border-radius:3px;background:#3b82f6;display:inline-block"></span>Manutenção</span>
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#7c3aed"><span style="width:12px;height:12px;border-radius:3px;background:#7c3aed;display:inline-block"></span>🎯 Follow-up Lead</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#0c4a6e"><span style="width:12px;height:12px;border-radius:3px;background:#0ea5e9;display:inline-block"></span>🌐 Externo (Google)</span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px" id="google-cal-status-wrap"></div>
         </div>
         <div class="card-body" style="padding:0" id="agenda-corpo"></div>
       </div>
@@ -3681,7 +3686,7 @@ function irPara(tela){
     if(tela === 'os') atualizarResumoPainelOS();
     if(tela === 'orcamentos') renderOrcamentos();
     if(tela === 'precos'){ renderProdutosGeral(); }
-    if(tela === 'agenda') renderizarAgenda();
+    if(tela === 'agenda'){ renderizarAgenda(); renderGoogleCalendarStatus(); }
     if(tela === 'rel-leads'){ inicializarFiltroRelLeads(); renderRelLeads(); }
     if(tela === 'rel-operacional'){ inicializarFiltroRelOp(); renderRelOperacional(); }
     if(tela === 'rel-propostas'){ inicializarFiltroRelProp(); renderRelPropostasDigitais(); }
@@ -6529,6 +6534,12 @@ function toggleTaskConcluida(id){
     atualizarBadgeTasks();
     atualizarResumoTasksDashboard();
     if(novoStatus === 'concluida' && t.recorrente) criarProximaOcorrenciaTask(t);
+    // Task concluída não precisa mais aparecer no Google Calendar como pendência.
+    if(novoStatus === 'concluida' && t.googleEventId){
+      googleCalendarExcluirEvento(t.googleEventId);
+      db.collection('tasks').doc(id).update({ googleEventId: firebase.firestore.FieldValue.delete() }).catch(function(){});
+      t.googleEventId = null;
+    }
   }).catch(function(e){ toast('Erro: '+e.message,'error'); });
 }
 
@@ -6769,6 +6780,23 @@ function salvarTask(){
       atualizarBadgeTasks();
       atualizarResumoTasksDashboard();
       if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
+      // Sincroniza com o Google Calendar (só tasks COM prazo viram evento — sem prazo não tem
+      // data pra marcar, então nem tenta). Se o prazo foi removido, apaga o evento existente.
+      var taskGEId = _taskAtual.googleEventId || null;
+      if(dados.prazo){
+        googleCalendarSalvarEvento(taskGEId, {
+          summary: '📝 '+dados.titulo,
+          description: (dados.descricao||'')+' — SafeZone HUB (Tasks)',
+          start: { date: dados.prazo }, end: { date: dados.prazo }
+        }, function(novoIdTask){
+          db.collection('tasks').doc(taskIdEdicao).update({ googleEventId: novoIdTask }).then(function(){
+            if(tIdx>=0) todasTasksGlobal[tIdx].googleEventId = novoIdTask;
+          }).catch(function(){});
+        });
+      } else if(taskGEId){
+        googleCalendarExcluirEvento(taskGEId);
+        db.collection('tasks').doc(taskIdEdicao).update({ googleEventId: firebase.firestore.FieldValue.delete() }).catch(function(){});
+      }
     }).catch(function(e){ toast('Erro: '+e.message,'error'); });
   } else {
     var maxOrdemNova = todasTasksGlobal.filter(function(x){ return x.listaId===listaId; }).reduce(function(m,x){ return Math.max(m, x.ordem||0); }, 0);
@@ -6786,6 +6814,17 @@ function salvarTask(){
       atualizarBadgeTasks();
       atualizarResumoTasksDashboard();
       if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
+      if(dados.prazo){
+        googleCalendarSalvarEvento(null, {
+          summary: '📝 '+dados.titulo,
+          description: (dados.descricao||'')+' — SafeZone HUB (Tasks)',
+          start: { date: dados.prazo }, end: { date: dados.prazo }
+        }, function(novoIdTask){
+          db.collection('tasks').doc(docRef.id).update({ googleEventId: novoIdTask }).then(function(){
+            novaTask.googleEventId = novoIdTask;
+          }).catch(function(){});
+        });
+      }
     }).catch(function(e){ toast('Erro: '+e.message,'error'); });
   }
 }
@@ -6794,6 +6833,7 @@ function excluirTask(){
   if(!_taskAtual) return;
   if(!confirm('Excluir esta tarefa permanentemente?')) return;
   var taskIdExcluir = _taskAtual.id;
+  var taskGEIdExcluir = _taskAtual.googleEventId;
   db.collection('tasks').doc(taskIdExcluir).delete().then(function(){
     todasTasksGlobal = todasTasksGlobal.filter(function(t){ return t.id!==taskIdExcluir; });
     toast('Tarefa excluída.','success');
@@ -6802,6 +6842,7 @@ function excluirTask(){
     atualizarBadgeTasks();
     atualizarResumoTasksDashboard();
     if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
+    if(taskGEIdExcluir) googleCalendarExcluirEvento(taskGEIdExcluir);
   }).catch(function(e){ toast('Erro: '+e.message,'error'); });
 }
 
@@ -7044,6 +7085,7 @@ function iniciarGestor(){
   carregarMensagensPosvenda();
   iniciarListenerClientes();
   iniciarListenerFinanceiro();
+  googleCalendarTentarReconectarAutomaticamente();
   migrarNotasParaTasksSeNecessario();
   carregarLeads();
   carregarServicos();
@@ -8491,6 +8533,7 @@ function renderizarAgendaMes(corpo){
   }
   html += '</div>';
   corpo.innerHTML = html;
+  agendaMesclarEventosExternos(ano+'-'+String(mes+1).padStart(2,'0')+'-01', ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(ultimoDia).padStart(2,'0'));
 }
 
 function renderizarAgendaSemana(corpo){
@@ -8595,6 +8638,27 @@ function renderizarAgendaSemana(corpo){
   });
   html += '</table></div>';
   corpo.innerHTML = html;
+  agendaMesclarEventosExternos(dataLocalYMD(diasSemana[0]), dataLocalYMD(diasSemana[6]));
+}
+
+// Busca assíncrona (a grade da Agenda já está montada na tela quando a resposta chega) —
+// encontra a célula certa pelo mesmo data-datastr já usado por todo o resto da Agenda, e
+// injeta a pílula "Externo" ali dentro, sem precisar re-renderizar a grade inteira.
+function agendaMesclarEventosExternos(deStr, ateStr){
+  if(!googleCalendarConectado()) return;
+  googleCalendarBuscarExternos(deStr, ateStr, function(eventos){
+    eventos.forEach(function(ev){
+      var celula = document.querySelector('[data-datastr="'+ev.data+'"]');
+      if(!celula) return;
+      var pill = document.createElement('div');
+      pill.className = 'agenda-os-pill';
+      pill.style.cssText = 'background:#e0f2fe;color:#0c4a6e;border-left:3px solid #0ea5e9';
+      pill.dataset.googleEventId = ev.id;
+      pill.textContent = '🌐 ' + ev.titulo;
+      pill.onclick = function(e){ e.stopPropagation(); };
+      celula.appendChild(pill);
+    });
+  });
 }
 
 function corPorTipoOS(tipoOS){
@@ -9425,7 +9489,8 @@ function salvarVisitaOrc(){
       status: (visitaAntes && visitaAntes.status === 'realizada') ? 'realizada' : (data ? 'agendada' : 'pendente_agendamento'),
       relatorioId: visitaAntes ? (visitaAntes.relatorioId||null) : null,
       propostaOrigemVisitaId: visitaAntes ? (visitaAntes.propostaOrigemVisitaId||null) : (window._visitaPropostaOrigemId||null),
-      criadoEm: visitaAntes ? (visitaAntes.criadoEm||firebase.firestore.Timestamp.now()) : firebase.firestore.Timestamp.now()
+      criadoEm: visitaAntes ? (visitaAntes.criadoEm||firebase.firestore.Timestamp.now()) : firebase.firestore.Timestamp.now(),
+      googleEventId: visitaAntes ? (visitaAntes.googleEventId||null) : null
     };
     if(emEdicao && visitas.length){ visitas[visitas.length-1] = novaVisita; }
     else { visitas.push(novaVisita); }
@@ -9443,6 +9508,29 @@ function salvarVisitaOrc(){
         if(updateData.status) orcGlobal.status = updateData.status;
       }
       sincronizarVisitaAvaliacaoTecnico(orcId, orcData.numero||orcNum, cliente, novaVisita, true);
+      // Sincroniza com o Google Calendar (se conectado). A visita mora dentro do array
+      // orcamentos.visitas[], não num doc próprio — atualizar o googleEventId de volta significa
+      // regravar o array inteiro (mesma técnica usada pra qualquer outro campo da visita).
+      if(data && hora){
+        var evInicioVisita = new Date(data+'T'+hora+':00');
+        var evFimVisita = new Date(evInicioVisita.getTime() + 60*60000); // 1h padrão pra visita
+        googleCalendarSalvarEvento(novaVisita.googleEventId||null, {
+          summary: '[Visita de Avaliação] '+cliente + (tecnicoNome?' — '+tecnicoNome:''),
+          description: 'Visita de Avaliação SafeZone HUB — Orçamento #'+(orcData.numero||orcNum)+(endereco?(' — '+endereco+(cidade?', '+cidade:'')):''),
+          start: { dateTime: evInicioVisita.toISOString() }, end: { dateTime: evFimVisita.toISOString() }
+        }, function(novoIdVisita){
+          db.collection('orcamentos').doc(orcId).get().then(function(snapAtual){
+            var visitasAtuais = (snapAtual.data().visitas||[]).slice();
+            if(visitasAtuais.length){
+              visitasAtuais[visitasAtuais.length-1].googleEventId = novoIdVisita;
+              db.collection('orcamentos').doc(orcId).update({ visitas: visitasAtuais }).then(function(){
+                var orcGlobalGE = todasOrcamentosGlobal.find(function(o){ return o.id===orcId; });
+                if(orcGlobalGE) orcGlobalGE.visitas = visitasAtuais;
+              }).catch(function(){});
+            }
+          }).catch(function(){});
+        });
+      }
       if(!emEdicao){
         var dataFmt = data ? new Date(data+'T12:00:00').toLocaleDateString('pt-BR') : '';
         var incompleta = !data || !tecnicoNome;
@@ -9580,6 +9668,24 @@ function salvarOS(){
           }
         }
         if(data && hora && tecnicoEmail) notificarAgendamento(dadosBase, osEmEdicao);
+        // Sincroniza com o Google Calendar (se conectado): apaga o evento se a OS foi cancelada,
+        // ou cria/atualiza se tem data+hora. Não bloqueia o resto do fluxo se falhar/desconectado.
+        if(osOriginal){
+          if(dadosBase.status === 'cancelada' && osOriginal.googleEventId){
+            googleCalendarExcluirEvento(osOriginal.googleEventId);
+            db.doc('os/'+osEmEdicao).update({ googleEventId: firebase.firestore.FieldValue.delete() }).catch(function(){});
+          } else if(data && hora){
+            var evInicioOS = new Date(data+'T'+hora+':00');
+            var evFimOS = new Date(evInicioOS.getTime() + 90*60000);
+            googleCalendarSalvarEvento(osOriginal.googleEventId||null, {
+              summary: '['+tipoOS+'] '+cliente + (tecnicoNome?' — '+tecnicoNome:''),
+              description: 'OS SafeZone HUB'+(endereco?(' — '+endereco+(cidade?', '+cidade:'')):''),
+              start: { dateTime: evInicioOS.toISOString() }, end: { dateTime: evFimOS.toISOString() }
+            }, function(novoId){
+              db.doc('os/'+osEmEdicao).update({ googleEventId: novoId }).catch(function(){});
+            });
+          }
+        }
         // Sincronizar data com lead vinculado se existir (fluxo legado direto OS↔Lead)
         if(osOriginal && osOriginal.leadVinculadoId){
           var sincLead = { osVinculadaData: data||'' };
@@ -9609,6 +9715,19 @@ function salvarOS(){
             (dadosBase.tecnicoNome ? ' — técnico: '+dadosBase.tecnicoNome : ' — sem técnico definido')+
             (dadosBase.data ? ' — agendada para '+new Date(dadosBase.data+'T12:00:00').toLocaleDateString('pt-BR')+(dadosBase.hora?' às '+dadosBase.hora:'') : ' — sem data definida');
           gravarHistorico(ref.id, 'os_criada', descCriacao);
+          if(dadosBase.data && dadosBase.hora){
+            var evInicioNovaOS = new Date(dadosBase.data+'T'+dadosBase.hora+':00');
+            var evFimNovaOS = new Date(evInicioNovaOS.getTime() + 90*60000);
+            googleCalendarSalvarEvento(null, {
+              summary: '['+tipoRef+'] '+cliente + (dadosBase.tecnicoNome?' — '+dadosBase.tecnicoNome:''),
+              description: 'OS SafeZone HUB'+(endereco?(' — '+endereco+(cidade?', '+cidade:'')):''),
+              start: { dateTime: evInicioNovaOS.toISOString() }, end: { dateTime: evFimNovaOS.toISOString() }
+            }, function(novoIdOS){
+              // "ref" já é a referência certa capturada no forEach — cada callback fecha sobre o
+              // ref correspondente (closures em .forEach, não reaproveita variável solta).
+              db.doc('os/'+ref.id).update({ googleEventId: novoIdOS }).catch(function(){});
+            });
+          }
         });
         if(data && hora && tecnicoEmail){
           refs.forEach(function(ref, idx){
@@ -19557,6 +19676,176 @@ function getMesAtualStr(){
 // ══════════════════════════════════════════════
 var CATEGORIAS_DESPESA = ['Aluguel','Água/Energia','Salários/Comissões','Fornecedores/Estoque','Impostos','Marketing','Manutenção/Ferramentas','Combustível/Transporte','Telefonia/Internet','Outros'];
 var todasFinanceiroGlobal = [];
+
+// ══════════════════════════════════════════════
+// GOOGLE CALENDAR — sincronização bidirecional (rodada 407+)
+// HUB é 100% client-side (GitHub Pages, sem backend) — usa OAuth2 client-side puro (Google
+// Identity Services), sem refresh token seguro. Token expira ~1h; o navegador consegue renovar
+// silenciosamente (prompt:'') na maioria das vezes enquanto a pessoa continuar logada na conta
+// Google naquela aba, mas pode ocasionalmente pedir 1 clique de reconexão — limitação aceita
+// conscientemente (ver decisão registrada em memória, 12/08/2026).
+// Escopo: HUB→Google só empurra "tipo compromisso" (OS agendada, Visita de Avaliação, Task com
+// prazo) — followup de lead/proposta ficou de fora por decisão explícita (poluiria o calendário
+// com muito volume). Google→HUB traz de volta qualquer evento que NÃO tenha o marcador de
+// origem (extendedProperties.private.origemSafezoneHub) — cobre o que ainda é lançado direto no
+// BomSaldo ou manualmente no Google, enquanto a migração pro HUB não é 100%.
+// ══════════════════════════════════════════════
+var GOOGLE_CLIENT_ID = '890631820717-3ojk6edpujq5tf3ukvois0315jo5tqem.apps.googleusercontent.com';
+var GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+var _googleTokenClient = null;
+var _googleAccessToken = null;
+var _googleTokenExpiraEm = 0;
+var _googleEventosExternosCache = {}; // chave 'YYYY-MM-DD_YYYY-MM-DD' → array de eventos (evita rebuscar toda hora)
+
+function googleCalendarInicializarClient(){
+  if(_googleTokenClient) return true;
+  if(typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) return false; // script do Google ainda carregando
+  _googleTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: GOOGLE_CALENDAR_SCOPE,
+    callback: function(){} // sobrescrito a cada chamada (conectarGoogleCalendar / googleCalendarGarantirToken)
+  });
+  return true;
+}
+
+function googleCalendarConectado(){
+  return !!(_googleAccessToken && Date.now() < _googleTokenExpiraEm);
+}
+
+function renderGoogleCalendarStatus(){
+  var wrap = document.getElementById('google-cal-status-wrap');
+  if(!wrap) return;
+  if(googleCalendarConectado()){
+    wrap.innerHTML = '<span style="font-size:11px;font-weight:700;color:#047857;display:flex;align-items:center;gap:5px">🟢 Google Calendar conectado</span>'+
+      '<button class="btn btn-secondary btn-sm" onclick="desconectarGoogleCalendar()" style="font-size:10px">Desconectar</button>';
+  } else {
+    wrap.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="conectarGoogleCalendar()" style="font-size:11px">🔗 Conectar Google Calendar</button>';
+  }
+}
+
+function conectarGoogleCalendar(){
+  if(!googleCalendarInicializarClient()){ toast('Aguarde o Google carregar e tente de novo.', 'error'); return; }
+  _googleTokenClient.callback = function(resp){
+    if(resp && resp.access_token){
+      _googleAccessToken = resp.access_token;
+      _googleTokenExpiraEm = Date.now() + ((resp.expires_in||3600)*1000) - 60000; // 1min de margem
+      try{ localStorage.setItem('sz_google_conectado', '1'); }catch(e){}
+      renderGoogleCalendarStatus();
+      toast('Google Calendar conectado!');
+      if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
+    } else if(resp && resp.error){
+      toast('Não foi possível conectar: '+resp.error, 'error');
+    }
+  };
+  _googleTokenClient.requestAccessToken({ prompt: 'consent' });
+}
+
+function desconectarGoogleCalendar(){
+  if(_googleAccessToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2){
+    try{ google.accounts.oauth2.revoke(_googleAccessToken, function(){}); }catch(e){}
+  }
+  _googleAccessToken = null; _googleTokenExpiraEm = 0;
+  _googleEventosExternosCache = {};
+  try{ localStorage.removeItem('sz_google_conectado'); }catch(e){}
+  renderGoogleCalendarStatus();
+  if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
+}
+
+// Garante um token válido antes de chamar a API — tenta renovar silenciosamente (prompt:'') se
+// expirado; se isso falhar (ex: usuário saiu da conta Google), cai pro estado "desconectado" e
+// quem chamou simplesmente não consegue sincronizar até reconectar manualmente.
+function googleCalendarGarantirToken(callback, aoFalhar){
+  if(googleCalendarConectado()){ callback(); return; }
+  if(!googleCalendarInicializarClient()){ if(aoFalhar) aoFalhar(); return; }
+  _googleTokenClient.callback = function(resp){
+    if(resp && resp.access_token){
+      _googleAccessToken = resp.access_token;
+      _googleTokenExpiraEm = Date.now() + ((resp.expires_in||3600)*1000) - 60000;
+      callback();
+    } else if(aoFalhar) aoFalhar();
+  };
+  _googleTokenClient.requestAccessToken({ prompt: '' }); // silencioso — sem popup se já autorizado antes
+}
+
+// Cria ou atualiza um evento no Google Calendar (calendário "primary" da conta conectada — a
+// conta comercial compartilhada). googleEventIdAtual null/vazio = cria novo (POST); com valor =
+// atualiza o existente (PATCH). onSucesso(novoGoogleEventId) grava o id de volta no Firestore.
+function googleCalendarSalvarEvento(googleEventIdAtual, dadosEvento, onSucesso){
+  googleCalendarGarantirToken(function(){
+    var corpo = Object.assign({
+      // Lembrete por e-mail 30min antes, por padrão — pedido do usuário. Quem chamar pode
+      // sobrescrever passando "reminders" já preenchido em dadosEvento, se precisar de outra regra.
+      reminders: { useDefault: false, overrides: [{ method: 'email', minutes: 30 }] }
+    }, dadosEvento, {
+      extendedProperties: { private: { origemSafezoneHub: 'true' } }
+    });
+    var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events' + (googleEventIdAtual ? ('/'+googleEventIdAtual) : '');
+    fetch(url, {
+      method: googleEventIdAtual ? 'PATCH' : 'POST',
+      headers: { 'Authorization': 'Bearer '+_googleAccessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo)
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if(data && data.id && onSucesso) onSucesso(data.id);
+      else if(data && data.error) console.warn('Google Calendar recusou o evento:', data.error);
+    }).catch(function(e){ console.warn('Erro de rede ao sincronizar com Google Calendar:', e); });
+  }); // sem "aoFalhar" — se não conseguir token, simplesmente não sincroniza dessa vez, sem travar o resto do salvamento
+}
+
+function googleCalendarExcluirEvento(googleEventId){
+  if(!googleEventId) return;
+  googleCalendarGarantirToken(function(){
+    fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/'+googleEventId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer '+_googleAccessToken }
+    }).catch(function(e){ console.warn('Erro ao excluir evento do Google Calendar:', e); });
+  });
+}
+
+// Busca eventos externos (sem o marcador de origem) num intervalo, pra mesclar na Agenda.
+// Cacheado por intervalo exato (a Agenda sempre pede o mesmo intervalo do mês/semana visível
+// várias vezes seguidas ao navegar de volta) — cache é só em memória, limpo ao desconectar.
+function googleCalendarBuscarExternos(deStr, ateStr, callback){
+  if(!googleCalendarConectado()){ callback([]); return; }
+  var chaveCache = deStr+'_'+ateStr;
+  if(_googleEventosExternosCache[chaveCache]){ callback(_googleEventosExternosCache[chaveCache]); return; }
+  googleCalendarGarantirToken(function(){
+    var timeMin = new Date(deStr+'T00:00:00').toISOString();
+    var timeMax = new Date(ateStr+'T23:59:59').toISOString();
+    var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin='+encodeURIComponent(timeMin)+
+      '&timeMax='+encodeURIComponent(timeMax)+'&singleEvents=true&maxResults=250';
+    fetch(url, { headers: { 'Authorization': 'Bearer '+_googleAccessToken } })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var itens = (data.items||[]).filter(function(ev){
+          return !(ev.extendedProperties && ev.extendedProperties.private && ev.extendedProperties.private.origemSafezoneHub === 'true');
+        }).map(function(ev){
+          var dataStr = ev.start ? (ev.start.date || (ev.start.dateTime||'').slice(0,10)) : '';
+          return { id: ev.id, titulo: ev.summary || '(sem título)', data: dataStr, diaInteiro: !!ev.start.date };
+        }).filter(function(ev){ return ev.data; });
+        _googleEventosExternosCache[chaveCache] = itens;
+        callback(itens);
+      }).catch(function(e){ console.warn('Erro ao buscar eventos externos do Google Calendar:', e); callback([]); });
+  }, function(){ callback([]); });
+}
+
+// Tenta reconectar sozinho no boot se já esteve conectado antes (sem popup — se falhar, o
+// usuário só vê o botão "Conectar" de novo, sem nenhum erro chato).
+function googleCalendarTentarReconectarAutomaticamente(){
+  var jaConectouAntes = false;
+  try{ jaConectouAntes = localStorage.getItem('sz_google_conectado') === '1'; }catch(e){}
+  if(!jaConectouAntes) return;
+  var tentativas = 0;
+  var esperar = setInterval(function(){
+    tentativas++;
+    if(googleCalendarInicializarClient()){
+      clearInterval(esperar);
+      googleCalendarGarantirToken(function(){
+        renderGoogleCalendarStatus();
+        if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
+      });
+    } else if(tentativas > 20){ clearInterval(esperar); } // ~10s tentando, desiste (script do Google não carregou)
+  }, 500);
+}
 
 function iniciarListenerFinanceiro(){
   var u = db.collection('financeiro_lancamentos').onSnapshot(function(snap){

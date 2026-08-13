@@ -781,7 +781,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 408</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 409</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -3801,7 +3801,12 @@ function fazerLogout(){
   unsubs.forEach(function(u){ u(); }); unsubs = [];
   _gestorIniciado = false;
   sessaoLimparAtividade();
-  auth.signOut();
+  // location.reload() garante buscar o código mais recente do servidor a cada novo login — sem
+  // isso, o logout só trocava a tela DENTRO da mesma página já carregada (podia ficar rodando
+  // JS de dias atrás indefinidamente se a aba nunca fosse fechada, mesmo deslogando/logando
+  // várias vezes). Encadeado no .then() do signOut pra garantir que o logout realmente processou
+  // antes de recarregar (evita qualquer corrida entre os dois).
+  auth.signOut().then(function(){ location.reload(); }).catch(function(){ location.reload(); });
 }
 
 // Determina o perfil (gestor/técnico) do usuário autenticado. GESTOR_EMAILS continua existindo

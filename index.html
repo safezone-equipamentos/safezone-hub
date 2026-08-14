@@ -250,6 +250,9 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
 .agenda-dia-header{padding:8px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;border-right:1px solid var(--gray-200);border-bottom:1px solid var(--gray-200);background:var(--gray-50)}
 .agenda-dia-header.hoje{color:var(--green);background:var(--green-light)}
 .agenda-celula{height:90px;padding:4px;border-right:1px solid var(--gray-200);border-bottom:1px solid var(--gray-200);vertical-align:top;cursor:pointer;transition:background .1s;overflow:hidden}
+.agenda-celula-expandida{height:auto!important;overflow:visible!important}
+.agenda-mais-link{font-size:9px;font-weight:700;color:var(--gray-500);cursor:pointer;padding:1px 4px;text-align:center}
+.agenda-mais-link:hover{color:var(--green-dark);text-decoration:underline}
 .agenda-celula:hover{background:var(--gray-50)}
 .agenda-celula.outro-mes{background:#fafafa}
 .agenda-celula.hoje{background:#f0fdf0}
@@ -778,7 +781,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 411</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 412</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -6802,14 +6805,17 @@ function salvarTask(){
       atualizarBadgeTasks();
       atualizarResumoTasksDashboard();
       if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
-      // Sincroniza com o Google Calendar (só tasks COM prazo viram evento — sem prazo não tem
-      // data pra marcar, então nem tenta). Se o prazo foi removido, apaga o evento existente.
+      // Sincroniza com o Google Calendar — usa a MESMA lógica de data efetiva que a Agenda usa
+      // pra mostrar a task (taskDataAgenda: lembrete tem prioridade, cai pro prazo se vazio).
+      // Antes checava só "dados.prazo" direto, então uma task com só "lembrete" preenchido
+      // (sem prazo) aparecia normal na Agenda do HUB mas nunca ia pro Google.
       var taskGEId = _taskAtual.googleEventId || null;
-      if(dados.prazo){
+      var dataEfetivaTask = dados.proximoLembrete || dados.prazo || '';
+      if(dataEfetivaTask){
         googleCalendarSalvarEvento(taskGEId, {
           summary: '📝 '+dados.titulo,
           description: (dados.descricao||'')+' — SafeZone HUB (Tasks)',
-          start: { date: dados.prazo }, end: { date: dados.prazo }
+          start: { date: dataEfetivaTask }, end: { date: dataEfetivaTask }
         }, function(novoIdTask){
           db.collection('tasks').doc(taskIdEdicao).update({ googleEventId: novoIdTask }).then(function(){
             if(tIdx>=0) todasTasksGlobal[tIdx].googleEventId = novoIdTask;
@@ -6836,11 +6842,12 @@ function salvarTask(){
       atualizarBadgeTasks();
       atualizarResumoTasksDashboard();
       if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
-      if(dados.prazo){
+      var dataEfetivaTaskNova = dados.proximoLembrete || dados.prazo || '';
+      if(dataEfetivaTaskNova){
         googleCalendarSalvarEvento(null, {
           summary: '📝 '+dados.titulo,
           description: (dados.descricao||'')+' — SafeZone HUB (Tasks)',
-          start: { date: dados.prazo }, end: { date: dados.prazo }
+          start: { date: dataEfetivaTaskNova }, end: { date: dataEfetivaTaskNova }
         }, function(novoIdTask){
           db.collection('tasks').doc(docRef.id).update({ googleEventId: novoIdTask }).then(function(){
             novaTask.googleEventId = novoIdTask;
@@ -8678,6 +8685,36 @@ function agendaMesclarEventosExternos(deStr, ateStr){
       pill.onclick = function(e){ e.stopPropagation(); abrirModalEventoExterno(ev.id); };
       celula.appendChild(pill);
     });
+    // Roda aqui (não antes) — precisa esperar os externos chegarem pra contar certo quantas
+    // pílulas cada célula tem no total. Sempre executa, mesmo com 0 eventos externos, porque o
+    // callback sempre dispara (só a lista vem vazia se não houver nada) — é o ponto único e
+    // confiável pra aplicar o limite depois que TUDO (síncrono + assíncrono) já está no DOM.
+    agendaAplicarLimitePilulas();
+  });
+}
+
+// Só a visão MENSAL tem altura fixa por célula (a semanal já cresce sozinha, min-height sem
+// overflow:hidden) — então só ali um dia cheio de eventos cortava o resto silenciosamente, sem
+// nenhuma pista visual de que havia mais coisa. Mostra as 3 primeiras pílulas, esconde o resto,
+// e adiciona um link "+N mais" que expande a célula (a linha inteira do grid cresce junto,
+// já que .agenda-grid não trava altura de linha, só de coluna).
+function agendaAplicarLimitePilulas(){
+  document.querySelectorAll('.agenda-celula').forEach(function(celula){
+    if(celula.querySelector('.agenda-mais-link')) return; // já processada, não duplica o link
+    var pilulas = Array.prototype.slice.call(celula.children).filter(function(el){ return el.classList.contains('agenda-os-pill'); });
+    if(pilulas.length <= 3) return;
+    for(var i=3;i<pilulas.length;i++) pilulas[i].style.display = 'none';
+    var link = document.createElement('div');
+    link.className = 'agenda-mais-link';
+    link.textContent = '+'+(pilulas.length-3)+' mais';
+    link.onclick = function(e){
+      e.stopPropagation();
+      var estaOculto = pilulas[3].style.display === 'none';
+      for(var j=3;j<pilulas.length;j++) pilulas[j].style.display = estaOculto ? 'block' : 'none';
+      celula.classList.toggle('agenda-celula-expandida', estaOculto);
+      link.textContent = estaOculto ? 'Mostrar menos' : ('+'+(pilulas.length-3)+' mais');
+    };
+    celula.appendChild(link);
   });
 }
 
@@ -11122,19 +11159,19 @@ function atualizarCamposServicos(){
       lbl.className='chip-select';
       lbl.style.cssText='display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:7px 13px;border:1px solid var(--gray-200);border-radius:8px;transition:all .15s';
       var chk=document.createElement('input'); chk.type='checkbox'; chk.className='lead-int-chk'; chk.value=s.nome; chk.style.display='none';
-      chk.onchange=function(){ toggleTipoLabel(this); };
+      // Serviço "Outro"/"Outros" do catálogo (se cadastrado) mantém o campo de texto livre pra
+      // especificar o quê — mesmo comportamento que existia antes, só que agora não depende de
+      // um checkbox fixo separado no código (causava o "Outro" aparecer duplicado assim que um
+      // serviço real com esse nome fosse cadastrado em Cadastros → Serviços). Detecta pelo nome,
+      // então continua funcionando não importa como o serviço "genérico" esteja cadastrado.
+      var ehServicoGenerico = /^outro(s)?$/i.test((s.nome||'').trim());
+      chk.onchange = ehServicoGenerico
+        ? function(){ toggleTipoLabel(this); toggleOutroInteresse(this); }
+        : function(){ toggleTipoLabel(this); };
       lbl.appendChild(chk);
       lbl.insertAdjacentHTML('beforeend', iconeServico(s.nome)+' '+escHtml(s.nome));
       wrapLead.appendChild(lbl);
     });
-    var lblOutro=document.createElement('label');
-    lblOutro.className='chip-select';
-    lblOutro.style.cssText='display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:7px 13px;border:1px solid var(--gray-200);border-radius:8px;transition:all .15s';
-    var chkOutro=document.createElement('input'); chkOutro.type='checkbox'; chkOutro.className='lead-int-chk'; chkOutro.value='Outro'; chkOutro.style.display='none';
-    chkOutro.onchange=function(){ toggleTipoLabel(this); toggleOutroInteresse(this); };
-    lblOutro.appendChild(chkOutro);
-    lblOutro.insertAdjacentHTML('beforeend', iconeServico('Outro')+' Outro');
-    wrapLead.appendChild(lblOutro);
   }
   var wrapOS=document.getElementById('os-tipos-wrap');
   if(wrapOS){
@@ -14597,11 +14634,14 @@ function salvarLead(){
   if(!tel){ toastCampo('Informe o telefone do lead.', 'lead-telefone'); return; }
   if(!validarTelefone(tel)){ toastCampo('Telefone inválido. Informe DDD + número (mínimo 10 dígitos).', 'lead-telefone'); return; }
   var interesses = Array.from(document.querySelectorAll('.lead-int-chk:checked')).map(function(c){ return c.value; });
-  // Se "Outro" marcado, exigir descrição
-  if(interesses.indexOf('Outro') >= 0){
+  // Genérico ("Outro"/"Outros" do catálogo) marcado exige descrição — mesmo detector por nome
+  // usado em atualizarCamposServicos(), pra não depender do valor exato ser "Outro" (poderia
+  // ser "Outros", dependendo de como foi cadastrado em Serviços).
+  var interesseGenerico = interesses.find(function(i){ return /^outro(s)?$/i.test(i); });
+  if(interesseGenerico){
     var outroTxt = (document.getElementById('lead-int-outro-txt')||{}).value.trim();
-    if(!outroTxt){ toastCampo('Descreva o interesse "Outro".', 'lead-int-outro-txt'); return; }
-    interesses = interesses.map(function(i){ return i==='Outro' ? 'Outro: '+outroTxt : i; });
+    if(!outroTxt){ toastCampo('Descreva o interesse "'+interesseGenerico+'".', 'lead-int-outro-txt'); return; }
+    interesses = interesses.map(function(i){ return i===interesseGenerico ? (interesseGenerico+': '+outroTxt) : i; });
   }
   if(!interesses.length){ toastCampo('Selecione ao menos um interesse.', 'lead-interesses-wrap'); return; }
   var dados = {
@@ -17389,7 +17429,7 @@ function abrirNovoInteresseCliente(clienteId, interessesHerdados){
       (interessesHerdados||[]).forEach(function(interesse){
         // Interesses tipo "Outro: xyz" (texto livre digitado no cadastro do lead) não batem
         // literalmente com nenhum checkbox — mas representam o serviço "Outros", então caem nele.
-        var ehOutro = interesse === 'Outro' || interesse.indexOf('Outro:') === 0;
+        var ehOutro = /^outro(s)?(:|$)/i.test(interesse); // "Outro"/"Outros", com ou sem texto livre depois ("Outros: xyz")
         var chk = document.querySelector('.norc-servico-chk[value="'+(ehOutro?'Outros':interesse)+'"]');
         if(chk){ chk.checked = true; toggleTipoLabel(chk); }
       });
@@ -18778,7 +18818,7 @@ function leadAbrirOrcamento(){
     (_leadAtual.interesses||[]).forEach(function(interesse){
       // Interesses tipo "Outro: xyz" (texto livre digitado no cadastro do lead) não batem
       // literalmente com nenhum checkbox — mas representam o serviço "Outros", então caem nele.
-      var ehOutro = interesse === 'Outro' || interesse.indexOf('Outro:') === 0;
+      var ehOutro = /^outro(s)?(:|$)/i.test(interesse); // "Outro"/"Outros", com ou sem texto livre depois ("Outros: xyz")
       var chk = document.querySelector('.norc-servico-chk[value="'+(ehOutro?'Outros':interesse)+'"]');
       if(chk){ chk.checked = true; toggleTipoLabel(chk); }
     });
@@ -19609,10 +19649,11 @@ function salvarEdicaoLeadModal(){
   if(!tel){ toastCampo('Informe o telefone do lead.', 'lead-telefone'); return; }
   if(!validarTelefone(tel)){ toastCampo('Telefone inválido.', 'lead-telefone'); return; }
   var interesses = Array.from(document.querySelectorAll('.lead-int-chk:checked')).map(function(c){ return c.value; });
-  if(interesses.indexOf('Outro') >= 0){
+  var interesseGenericoEd = interesses.find(function(i){ return /^outro(s)?$/i.test(i); });
+  if(interesseGenericoEd){
     var outroTxt = (document.getElementById('lead-int-outro-txt')||{}).value.trim();
-    if(!outroTxt){ toastCampo('Descreva o interesse "Outro".', 'lead-int-outro-txt'); return; }
-    interesses = interesses.map(function(i){ return i==='Outro'?'Outro: '+outroTxt:i; });
+    if(!outroTxt){ toastCampo('Descreva o interesse "'+interesseGenericoEd+'".', 'lead-int-outro-txt'); return; }
+    interesses = interesses.map(function(i){ return i===interesseGenericoEd ? (interesseGenericoEd+': '+outroTxt) : i; });
   }
   if(!interesses.length){ toastCampo('Selecione ao menos um interesse.', 'lead-interesses-wrap'); return; }
   var upd = {

@@ -10,9 +10,6 @@
      pelo pedido automático que os navegadores fazem em /favicon.ico por padrão. Enquanto o
      arquivo não existir lá, o navegador cai silenciosamente pro ícone padrão — não trava nada. -->
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
-<!-- Google Identity Services — só o client de token OAuth (nenhuma biblioteca gapi.client
-     pesada; as chamadas de API do Calendar são feitas via fetch() direto, mais simples). -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -781,7 +778,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 410</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 411</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -1340,7 +1337,6 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#1e40af"><span style="width:12px;height:12px;border-radius:3px;background:#3b82f6;display:inline-block"></span>Manutenção</span>
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#7c3aed"><span style="width:12px;height:12px;border-radius:3px;background:#7c3aed;display:inline-block"></span>🎯 Follow-up Lead</span>
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#0c4a6e"><span style="width:12px;height:12px;border-radius:3px;background:#0ea5e9;display:inline-block"></span>🌐 Externo (Google)</span>
-          <div style="margin-left:auto;display:flex;align-items:center;gap:8px" id="google-cal-status-wrap"></div>
         </div>
         <div class="card-body" style="padding:0" id="agenda-corpo"></div>
       </div>
@@ -3707,7 +3703,7 @@ function irPara(tela){
     if(tela === 'os') atualizarResumoPainelOS();
     if(tela === 'orcamentos') renderOrcamentos();
     if(tela === 'precos'){ renderProdutosGeral(); }
-    if(tela === 'agenda'){ renderizarAgenda(); renderGoogleCalendarStatus(); }
+    if(tela === 'agenda') renderizarAgenda();
     if(tela === 'rel-leads'){ inicializarFiltroRelLeads(); renderRelLeads(); }
     if(tela === 'rel-operacional'){ inicializarFiltroRelOp(); renderRelOperacional(); }
     if(tela === 'rel-propostas'){ inicializarFiltroRelProp(); renderRelPropostasDigitais(); }
@@ -7111,7 +7107,6 @@ function iniciarGestor(){
   carregarMensagensPosvenda();
   iniciarListenerClientes();
   iniciarListenerFinanceiro();
-  googleCalendarTentarReconectarAutomaticamente();
   migrarNotasParaTasksSeNecessario();
   carregarLeads();
   carregarServicos();
@@ -8671,7 +8666,6 @@ function renderizarAgendaSemana(corpo){
 // encontra a célula certa pelo mesmo data-datastr já usado por todo o resto da Agenda, e
 // injeta a pílula "Externo" ali dentro, sem precisar re-renderizar a grade inteira.
 function agendaMesclarEventosExternos(deStr, ateStr){
-  if(!googleCalendarConectado()) return;
   googleCalendarBuscarExternos(deStr, ateStr, function(eventos){
     eventos.forEach(function(ev){
       var celula = document.querySelector('[data-datastr="'+ev.data+'"]');
@@ -19704,166 +19698,86 @@ var CATEGORIAS_DESPESA = ['Aluguel','Água/Energia','Salários/Comissões','Forn
 var todasFinanceiroGlobal = [];
 
 // ══════════════════════════════════════════════
-// GOOGLE CALENDAR — sincronização bidirecional (rodada 407+)
-// HUB é 100% client-side (GitHub Pages, sem backend) — usa OAuth2 client-side puro (Google
-// Identity Services), sem refresh token seguro. Token expira ~1h; o navegador consegue renovar
-// silenciosamente (prompt:'') na maioria das vezes enquanto a pessoa continuar logada na conta
-// Google naquela aba, mas pode ocasionalmente pedir 1 clique de reconexão — limitação aceita
-// conscientemente (ver decisão registrada em memória, 12/08/2026).
-// Escopo: HUB→Google só empurra "tipo compromisso" (OS agendada, Visita de Avaliação, Task com
-// prazo) — followup de lead/proposta ficou de fora por decisão explícita (poluiria o calendário
-// com muito volume). Google→HUB traz de volta qualquer evento que NÃO tenha o marcador de
-// origem (extendedProperties.private.origemSafezoneHub) — cobre o que ainda é lançado direto no
-// BomSaldo ou manualmente no Google, enquanto a migração pro HUB não é 100%.
+// GOOGLE CALENDAR — sincronização bidirecional (rodada 411+, reescrita pra usar o mesmo proxy
+// Google Apps Script já usado pro Gemini/Telegram, em vez de OAuth2 client-side puro).
+// Motivo da reescrita: o fluxo anterior (Google Identity Services, token só em memória) perdia
+// a conexão a cada refresh de página — token só existe enquanto a aba não recarrega, sem jeito
+// seguro de persistir sem backend. A saída elegante: o MESMO Apps Script que já tem acesso à
+// conta comercial (Code.gs, "Executar como: Eu" — a própria conta safezone.equipamentos@gmail.com,
+// confirmada como a mesma que criou o Apps Script do Gemini/Telegram) também tem acesso nativo
+// ao Google Calendar dessa conta via CalendarApp, SEM nenhum OAuth do lado do navegador — é
+// literalmente a mesma mecânica que já resolvia Gemini/Telegram, só um provider novo no proxy
+// ('calendar'). Isso elimina por completo token expirando, botão de conectar/desconectar, e o
+// problema de perder a sessão a cada F5 — passa a funcionar sempre, sem estado nenhum no cliente.
+// Escopo inalterado: HUB→Google só "tipo compromisso" (OS agendada, Visita de Avaliação, Task
+// com prazo). Google→HUB traz de volta qualquer evento que não tenha a marcação de origem
+// (agora um "tag" do CalendarApp, setTag('origemSafezoneHub','true') — equivalente ao antigo
+// extendedProperties.private, só que na API simplificada do Apps Script).
 // ══════════════════════════════════════════════
-var GOOGLE_CLIENT_ID = '890631820717-3ojk6edpujq5tf3ukvois0315jo5tqem.apps.googleusercontent.com';
-var GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
-var _googleTokenClient = null;
-var _googleAccessToken = null;
-var _googleTokenExpiraEm = 0;
 var _googleEventosExternosCache = {}; // chave 'YYYY-MM-DD_YYYY-MM-DD' → array de eventos (evita rebuscar toda hora)
 var _googleEventosExternosDetalhe = {}; // id do evento → dados completos (título/data/hora/descrição), pro modal de edição
 
-function googleCalendarInicializarClient(){
-  if(_googleTokenClient) return true;
-  if(typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) return false; // script do Google ainda carregando
-  _googleTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: GOOGLE_CALENDAR_SCOPE,
-    callback: function(){} // sobrescrito a cada chamada (conectarGoogleCalendar / googleCalendarGarantirToken)
-  });
-  return true;
-}
-
-function googleCalendarConectado(){
-  return !!(_googleAccessToken && Date.now() < _googleTokenExpiraEm);
-}
-
-function renderGoogleCalendarStatus(){
-  var wrap = document.getElementById('google-cal-status-wrap');
-  if(!wrap) return;
-  if(googleCalendarConectado()){
-    wrap.innerHTML = '<span style="font-size:11px;font-weight:700;color:#047857;display:flex;align-items:center;gap:5px">🟢 Google Calendar conectado</span>'+
-      '<button class="btn btn-secondary btn-sm" onclick="desconectarGoogleCalendar()" style="font-size:10px">Desconectar</button>';
-  } else {
-    wrap.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="conectarGoogleCalendar()" style="font-size:11px">🔗 Conectar Google Calendar</button>';
-  }
-}
-
-function conectarGoogleCalendar(){
-  if(!googleCalendarInicializarClient()){ toast('Aguarde o Google carregar e tente de novo.', 'error'); return; }
-  _googleTokenClient.callback = function(resp){
-    if(resp && resp.access_token){
-      _googleAccessToken = resp.access_token;
-      _googleTokenExpiraEm = Date.now() + ((resp.expires_in||3600)*1000) - 60000; // 1min de margem
-      try{ localStorage.setItem('sz_google_conectado', '1'); }catch(e){}
-      renderGoogleCalendarStatus();
-      toast('Google Calendar conectado!');
-      if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
-    } else if(resp && resp.error){
-      toast('Não foi possível conectar: '+resp.error, 'error');
-    }
-  };
-  _googleTokenClient.requestAccessToken({ prompt: 'consent' });
-}
-
-function desconectarGoogleCalendar(){
-  if(_googleAccessToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2){
-    try{ google.accounts.oauth2.revoke(_googleAccessToken, function(){}); }catch(e){}
-  }
-  _googleAccessToken = null; _googleTokenExpiraEm = 0;
-  _googleEventosExternosCache = {};
-  try{ localStorage.removeItem('sz_google_conectado'); }catch(e){}
-  renderGoogleCalendarStatus();
-  if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
-}
-
-// Garante um token válido antes de chamar a API — tenta renovar silenciosamente (prompt:'') se
-// expirado; se isso falhar (ex: usuário saiu da conta Google), cai pro estado "desconectado" e
-// quem chamou simplesmente não consegue sincronizar até reconectar manualmente.
-function googleCalendarGarantirToken(callback, aoFalhar){
-  if(googleCalendarConectado()){ callback(); return; }
-  if(!googleCalendarInicializarClient()){ if(aoFalhar) aoFalhar(); return; }
-  _googleTokenClient.callback = function(resp){
-    if(resp && resp.access_token){
-      _googleAccessToken = resp.access_token;
-      _googleTokenExpiraEm = Date.now() + ((resp.expires_in||3600)*1000) - 60000;
-      callback();
-    } else if(aoFalhar) aoFalhar();
-  };
-  _googleTokenClient.requestAccessToken({ prompt: '' }); // silencioso — sem popup se já autorizado antes
-}
-
-// Cria ou atualiza um evento no Google Calendar (calendário "primary" da conta conectada — a
-// conta comercial compartilhada). googleEventIdAtual null/vazio = cria novo (POST); com valor =
-// atualiza o existente (PATCH). onSucesso(novoGoogleEventId) grava o id de volta no Firestore.
+// Cria ou atualiza um evento (calendário da conta comercial, via proxy) — mesma assinatura de
+// antes, pra não precisar tocar em nenhum dos 5 pontos que já chamam (salvarOS, salvarVisitaOrc,
+// salvarTask). googleEventIdAtual null/vazio = cria (action 'create'); com valor = atualiza
+// (action 'update'). dadosEvento continua no formato da API REST do Google (summary,
+// description, start:{date|dateTime}, end:{...}) — só traduzido aqui pro formato mais simples
+// que o Apps Script espera, o resto do código não precisa saber dessa diferença.
 function googleCalendarSalvarEvento(googleEventIdAtual, dadosEvento, onSucesso){
-  googleCalendarGarantirToken(function(){
-    var corpo = Object.assign({
-      // Lembrete por e-mail 30min antes, por padrão — pedido do usuário. Quem chamar pode
-      // sobrescrever passando "reminders" já preenchido em dadosEvento, se precisar de outra regra.
-      reminders: { useDefault: false, overrides: [{ method: 'email', minutes: 30 }] }
-    }, dadosEvento, {
-      extendedProperties: { private: { origemSafezoneHub: 'true' } }
-    });
-    var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events' + (googleEventIdAtual ? ('/'+googleEventIdAtual) : '');
-    fetch(url, {
-      method: googleEventIdAtual ? 'PATCH' : 'POST',
-      headers: { 'Authorization': 'Bearer '+_googleAccessToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify(corpo)
-    }).then(function(r){ return r.json(); }).then(function(data){
-      if(data && data.id && onSucesso) onSucesso(data.id);
-      else if(data && data.error) console.warn('Google Calendar recusou o evento:', data.error);
-    }).catch(function(e){ console.warn('Erro de rede ao sincronizar com Google Calendar:', e); });
-  }); // sem "aoFalhar" — se não conseguir token, simplesmente não sincroniza dessa vez, sem travar o resto do salvamento
+  var diaInteiro = !!(dadosEvento.start && dadosEvento.start.date);
+  var payload = {
+    provider: 'calendar', action: googleEventIdAtual ? 'update' : 'create',
+    eventId: googleEventIdAtual || '', summary: dadosEvento.summary, description: dadosEvento.description || '',
+    allDay: diaInteiro, reminderMinutes: 30
+  };
+  if(diaInteiro) payload.date = dadosEvento.start.date;
+  else { payload.start = dadosEvento.start.dateTime; payload.end = dadosEvento.end.dateTime; }
+  fetch(AI_PROXY_URL, {
+    method: 'POST', headers: {'Content-Type':'text/plain;charset=utf-8'}, // evita pre-flight — ver nota em chamarKsToRIA
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if(data && data.ok && data.id && onSucesso) onSucesso(data.id);
+    else console.warn('Proxy recusou o evento do Calendar:', data && data.error);
+  }).catch(function(e){ console.warn('Erro de rede ao sincronizar com Google Calendar:', e); });
 }
 
 function googleCalendarExcluirEvento(googleEventId){
   if(!googleEventId) return;
-  googleCalendarGarantirToken(function(){
-    fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/'+googleEventId, {
-      method: 'DELETE',
-      headers: { 'Authorization': 'Bearer '+_googleAccessToken }
-    }).catch(function(e){ console.warn('Erro ao excluir evento do Google Calendar:', e); });
-  });
+  fetch(AI_PROXY_URL, {
+    method: 'POST', headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ provider:'calendar', action:'delete', eventId: googleEventId })
+  }).catch(function(e){ console.warn('Erro ao excluir evento via proxy:', e); });
 }
 
 // Busca eventos externos (sem o marcador de origem) num intervalo, pra mesclar na Agenda.
-// Cacheado por intervalo exato (a Agenda sempre pede o mesmo intervalo do mês/semana visível
-// várias vezes seguidas ao navegar de volta) — cache é só em memória, limpo ao desconectar.
+// Cacheado por intervalo exato — mesma lógica de antes, só a origem dos dados que mudou (proxy
+// em vez de chamada direta com token OAuth).
 function googleCalendarBuscarExternos(deStr, ateStr, callback){
-  if(!googleCalendarConectado()){ callback([]); return; }
   var chaveCache = deStr+'_'+ateStr;
   if(_googleEventosExternosCache[chaveCache]){ callback(_googleEventosExternosCache[chaveCache]); return; }
-  googleCalendarGarantirToken(function(){
-    var timeMin = new Date(deStr+'T00:00:00').toISOString();
-    var timeMax = new Date(ateStr+'T23:59:59').toISOString();
-    var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin='+encodeURIComponent(timeMin)+
-      '&timeMax='+encodeURIComponent(timeMax)+'&singleEvents=true&maxResults=250';
-    fetch(url, { headers: { 'Authorization': 'Bearer '+_googleAccessToken } })
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        var itens = (data.items||[]).filter(function(ev){
-          return !(ev.extendedProperties && ev.extendedProperties.private && ev.extendedProperties.private.origemSafezoneHub === 'true');
-        }).map(function(ev){
-          var diaInteiro = !!ev.start.date;
-          var dataStr = diaInteiro ? ev.start.date : (ev.start.dateTime||'').slice(0,10);
-          var horaStr = diaInteiro ? '' : (ev.start.dateTime||'').slice(11,16);
-          var item = { id: ev.id, titulo: ev.summary || '(sem título)', data: dataStr, hora: horaStr, diaInteiro: diaInteiro, descricao: ev.description||'' };
-          _googleEventosExternosDetalhe[ev.id] = item; // pro modal de edição buscar sem precisar refazer a chamada
-          return item;
-        }).filter(function(ev){ return ev.data; });
-        _googleEventosExternosCache[chaveCache] = itens;
-        callback(itens);
-      }).catch(function(e){ console.warn('Erro ao buscar eventos externos do Google Calendar:', e); callback([]); });
-  }, function(){ callback([]); });
+  fetch(AI_PROXY_URL, {
+    method: 'POST', headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ provider:'calendar', action:'list', timeMin: deStr+'T00:00:00', timeMax: ateStr+'T23:59:59' })
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if(!data || !data.ok){ callback([]); return; }
+    var itens = (data.items||[]).filter(function(ev){ return !ev.origemSafezoneHub; }).map(function(ev){
+      var diaInteiro = !!ev.allDay;
+      var dataStr = (ev.start||'').slice(0,10);
+      var horaStr = diaInteiro ? '' : (ev.start||'').slice(11,16);
+      var item = { id: ev.id, titulo: ev.summary || '(sem título)', data: dataStr, hora: horaStr, diaInteiro: diaInteiro, descricao: ev.description||'' };
+      _googleEventosExternosDetalhe[ev.id] = item; // pro modal de edição buscar sem precisar refazer a chamada
+      return item;
+    }).filter(function(ev){ return ev.data; });
+    _googleEventosExternosCache[chaveCache] = itens;
+    callback(itens);
+  }).catch(function(e){ console.warn('Erro ao buscar eventos externos via proxy:', e); callback([]); });
 }
 
 // ── Edição de evento EXTERNO (não criado pelo HUB) ──
-// Diferente de googleCalendarSalvarEvento (usado pra OS/Visita/Task), aqui NÃO marca o evento
-// com extendedProperties.private.origemSafezoneHub — se marcasse, o evento passaria a ser
-// tratado como "nosso" na próxima leitura (o filtro de pull exclui tudo que já tem esse
-// marcador), sumindo da lista de "Externo" mesmo sem ter sido criado pelo HUB de verdade.
+// Usa action:'update' no proxy, igual googleCalendarSalvarEvento — só que aqui NUNCA passa
+// pelo branch que marca o evento como "veio do HUB" (o Apps Script só seta essa tag no
+// action:'create', nunca no 'update' — ver Code.gs), então o evento continua reconhecido como
+// externo depois de editado por aqui.
 var _eventoExternoIdEmEdicao = null;
 function abrirModalEventoExterno(googleEventId){
   var ev = _googleEventosExternosDetalhe[googleEventId];
@@ -19878,16 +19792,20 @@ function abrirModalEventoExterno(googleEventId){
 }
 
 function googleCalendarSalvarEventoExterno(googleEventId, dadosEvento, onSucesso, onErro){
-  googleCalendarGarantirToken(function(){
-    fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/'+googleEventId, {
-      method: 'PATCH',
-      headers: { 'Authorization': 'Bearer '+_googleAccessToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify(dadosEvento)
-    }).then(function(r){ return r.json(); }).then(function(data){
-      if(data && data.id && onSucesso) onSucesso(data);
-      else { console.warn('Google Calendar recusou a edição:', data && data.error); toast('Erro ao salvar no Google Calendar.', 'error'); if(onErro) onErro(); }
-    }).catch(function(e){ console.warn('Erro de rede ao editar evento externo:', e); toast('Erro de rede ao salvar.', 'error'); if(onErro) onErro(); });
-  }, function(){ toast('Reconecte o Google Calendar pra editar este evento.', 'error'); if(onErro) onErro(); });
+  var diaInteiro = !!(dadosEvento.start && dadosEvento.start.date);
+  var payload = {
+    provider: 'calendar', action: 'update', eventId: googleEventId,
+    summary: dadosEvento.summary, description: dadosEvento.description || '', allDay: diaInteiro
+  };
+  if(diaInteiro) payload.date = dadosEvento.start.date;
+  else { payload.start = dadosEvento.start.dateTime; payload.end = dadosEvento.end.dateTime; }
+  fetch(AI_PROXY_URL, {
+    method: 'POST', headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if(data && data.ok && onSucesso) onSucesso(data);
+    else { console.warn('Proxy recusou a edição:', data && data.error); toast('Erro ao salvar no Google Calendar.', 'error'); if(onErro) onErro(); }
+  }).catch(function(e){ console.warn('Erro de rede ao editar evento externo:', e); toast('Erro de rede ao salvar.', 'error'); if(onErro) onErro(); });
 }
 
 function salvarEventoExternoGoogle(){
@@ -19923,24 +19841,6 @@ function excluirEventoExternoGoogle(){
   if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
 }
 
-// Tenta reconectar sozinho no boot se já esteve conectado antes (sem popup — se falhar, o
-// usuário só vê o botão "Conectar" de novo, sem nenhum erro chato).
-function googleCalendarTentarReconectarAutomaticamente(){
-  var jaConectouAntes = false;
-  try{ jaConectouAntes = localStorage.getItem('sz_google_conectado') === '1'; }catch(e){}
-  if(!jaConectouAntes) return;
-  var tentativas = 0;
-  var esperar = setInterval(function(){
-    tentativas++;
-    if(googleCalendarInicializarClient()){
-      clearInterval(esperar);
-      googleCalendarGarantirToken(function(){
-        renderGoogleCalendarStatus();
-        if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')) renderizarAgenda();
-      });
-    } else if(tentativas > 20){ clearInterval(esperar); } // ~10s tentando, desiste (script do Google não carregou)
-  }, 500);
-}
 
 function iniciarListenerFinanceiro(){
   var u = db.collection('financeiro_lancamentos').onSnapshot(function(snap){

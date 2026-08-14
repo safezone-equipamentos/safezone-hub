@@ -251,7 +251,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
 .agenda-dia-header.hoje{color:var(--green);background:var(--green-light)}
 .agenda-celula{height:90px;padding:4px;border-right:1px solid var(--gray-200);border-bottom:1px solid var(--gray-200);vertical-align:top;cursor:pointer;transition:background .1s;overflow:hidden}
 .agenda-celula-expandida{height:auto!important;overflow:visible!important}
-.agenda-mais-link{font-size:9px;font-weight:700;color:var(--gray-500);cursor:pointer;padding:1px 4px;text-align:center}
+.agenda-mais-link{font-size:9px;font-weight:700;color:var(--gray-500);cursor:pointer;padding:0 4px;text-align:center;line-height:14px;height:14px}
 .agenda-mais-link:hover{color:var(--green-dark);text-decoration:underline}
 .agenda-celula:hover{background:var(--gray-50)}
 .agenda-celula.outro-mes{background:#fafafa}
@@ -781,7 +781,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 412</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 414</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -6812,10 +6812,15 @@ function salvarTask(){
       var taskGEId = _taskAtual.googleEventId || null;
       var dataEfetivaTask = dados.proximoLembrete || dados.prazo || '';
       if(dataEfetivaTask){
+        // Tasks não têm hora no nosso modelo — mas mandar como "dia inteiro" (date, sem hora)
+        // faz o Google renderizar como uma barra colorida ocupando o dia todo (mesmo estilo de
+        // feriado/aniversário, nativo do Google Calendar, não dá pra mudar via API). Um horário
+        // padrão (09:00, 15min) resolve — vira um item compacto com bolinha, igual os outros.
         googleCalendarSalvarEvento(taskGEId, {
           summary: '📝 '+dados.titulo,
           description: (dados.descricao||'')+' — SafeZone HUB (Tasks)',
-          start: { date: dataEfetivaTask }, end: { date: dataEfetivaTask }
+          start: { dateTime: new Date(dataEfetivaTask+'T09:00:00').toISOString() },
+          end: { dateTime: new Date(dataEfetivaTask+'T09:15:00').toISOString() }
         }, function(novoIdTask){
           db.collection('tasks').doc(taskIdEdicao).update({ googleEventId: novoIdTask }).then(function(){
             if(tIdx>=0) todasTasksGlobal[tIdx].googleEventId = novoIdTask;
@@ -6847,7 +6852,8 @@ function salvarTask(){
         googleCalendarSalvarEvento(null, {
           summary: '📝 '+dados.titulo,
           description: (dados.descricao||'')+' — SafeZone HUB (Tasks)',
-          start: { date: dataEfetivaTaskNova }, end: { date: dataEfetivaTaskNova }
+          start: { dateTime: new Date(dataEfetivaTaskNova+'T09:00:00').toISOString() },
+          end: { dateTime: new Date(dataEfetivaTaskNova+'T09:15:00').toISOString() }
         }, function(novoIdTask){
           db.collection('tasks').doc(docRef.id).update({ googleEventId: novoIdTask }).then(function(){
             novaTask.googleEventId = novoIdTask;
@@ -8695,24 +8701,30 @@ function agendaMesclarEventosExternos(deStr, ateStr){
 
 // Só a visão MENSAL tem altura fixa por célula (a semanal já cresce sozinha, min-height sem
 // overflow:hidden) — então só ali um dia cheio de eventos cortava o resto silenciosamente, sem
-// nenhuma pista visual de que havia mais coisa. Mostra as 3 primeiras pílulas, esconde o resto,
+// nenhuma pista visual de que havia mais coisa. Mostra as 2 primeiras pílulas, esconde o resto,
 // e adiciona um link "+N mais" que expande a célula (a linha inteira do grid cresce junto,
 // já que .agenda-grid não trava altura de linha, só de coluna).
+// LIMITE = 2, não 3: com célula de 90px, número do dia (~16px) + 3 pílulas de 22px (66px) já
+// fecha os 90px sozinho — o link "+N mais" ficava sendo adicionado no DOM só que cortado pelo
+// overflow:hidden, invisível (bug real: um item podia existir e estar 100% correto nos dados,
+// só nunca aparecer na tela nem dar pista de que havia algo escondido). Com 2 pílulas (44px) +
+// número do dia (~16px) + link (~14px) = ~74px, sobra folga de verdade dentro dos 90px.
+var LIMITE_PILULAS_VISIVEIS_MES = 2;
 function agendaAplicarLimitePilulas(){
   document.querySelectorAll('.agenda-celula').forEach(function(celula){
     if(celula.querySelector('.agenda-mais-link')) return; // já processada, não duplica o link
     var pilulas = Array.prototype.slice.call(celula.children).filter(function(el){ return el.classList.contains('agenda-os-pill'); });
-    if(pilulas.length <= 3) return;
-    for(var i=3;i<pilulas.length;i++) pilulas[i].style.display = 'none';
+    if(pilulas.length <= LIMITE_PILULAS_VISIVEIS_MES) return;
+    for(var i=LIMITE_PILULAS_VISIVEIS_MES;i<pilulas.length;i++) pilulas[i].style.display = 'none';
     var link = document.createElement('div');
     link.className = 'agenda-mais-link';
-    link.textContent = '+'+(pilulas.length-3)+' mais';
+    link.textContent = '+'+(pilulas.length-LIMITE_PILULAS_VISIVEIS_MES)+' mais';
     link.onclick = function(e){
       e.stopPropagation();
-      var estaOculto = pilulas[3].style.display === 'none';
-      for(var j=3;j<pilulas.length;j++) pilulas[j].style.display = estaOculto ? 'block' : 'none';
+      var estaOculto = pilulas[LIMITE_PILULAS_VISIVEIS_MES].style.display === 'none';
+      for(var j=LIMITE_PILULAS_VISIVEIS_MES;j<pilulas.length;j++) pilulas[j].style.display = estaOculto ? 'block' : 'none';
       celula.classList.toggle('agenda-celula-expandida', estaOculto);
-      link.textContent = estaOculto ? 'Mostrar menos' : ('+'+(pilulas.length-3)+' mais');
+      link.textContent = estaOculto ? 'Mostrar menos' : ('+'+(pilulas.length-LIMITE_PILULAS_VISIVEIS_MES)+' mais');
     };
     celula.appendChild(link);
   });

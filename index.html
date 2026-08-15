@@ -624,21 +624,12 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
       <div class="auth-logo-text">SafeZone <span>HUB</span></div>
       <div class="auth-logo-sub">// conexões inteligentes</div>
       <div class="auth-boot-line">&gt; <span id="auth-boot-text"></span><span class="auth-boot-cursor"></span></div>
-      <!-- Envolvido num <form> de verdade (com autocomplete="on" + name/autocomplete em cada
-           campo) de propósito — é só assim que o gerenciador de senhas do navegador (Chrome,
-           Edge etc.) reconhece o login e passa a oferecer "salvar senha" e sugerir e-mails já
-           usados. display:contents não muda nada do layout (os filhos continuam se comportando
-           como se estivessem direto dentro do .auth-card-content), só dá esse gancho pro
-           navegador. Envio agora acontece pelo evento "submit" do form (ver listener logo
-           abaixo), não mais por onclick/Enter tratados manualmente. -->
-      <form id="auth-form" autocomplete="on" style="display:contents">
-        <label class="auth-label" for="auth-email">E-mail</label>
-        <input type="email" class="auth-input" id="auth-email" name="email" autocomplete="username" placeholder="seu@email.com.br">
-        <label class="auth-label" for="auth-senha">Senha</label>
-        <input type="password" class="auth-input" id="auth-senha" name="password" autocomplete="current-password" placeholder="••••••••">
-        <button type="submit" class="auth-btn" id="btn-login">Entrar</button>
-        <div class="auth-error" id="auth-error"></div>
-      </form>
+      <label class="auth-label">E-mail</label>
+      <input type="email" class="auth-input" id="auth-email" placeholder="seu@email.com.br">
+      <label class="auth-label">Senha</label>
+      <input type="password" class="auth-input" id="auth-senha" placeholder="••••••••">
+      <button class="auth-btn" id="btn-login" onclick="fazerLogin()">Entrar</button>
+      <div class="auth-error" id="auth-error"></div>
       <div class="auth-ia-badge"><img src="imagens/kstor-ia.png" alt="" style="height:38px;width:auto" onerror="this.style.display='none'"> Gestão com Inteligência Artificial</div>
     </div>
   </div>
@@ -790,7 +781,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 414</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 415</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -3755,8 +3746,7 @@ document.addEventListener('click', function(e){
   var btn = e.target.id ? e.target : e.target.closest('button[id]');
   if(!btn) return;
   switch(btn.id){
-    // 'btn-login' tratado pelo listener de "submit" do #auth-form (ver mais abaixo) — não
-    // duplicar aqui, senão o clique dispara fazerLogin() duas vezes.
+    case 'btn-login':        fazerLogin(); break;
     case 'btn-logout':       fazerLogout(); break;
     case 'btn-salvar-os':    salvarOS(); break;
     case 'btn-novo-tec':     abrirModalTecnico(); break;
@@ -3774,17 +3764,10 @@ document.addEventListener('keydown', function(e){
     var MODAIS_LEITURA = ['modal-historico','modal-lev'];
     MODAIS_LEITURA.forEach(function(id){ var m=document.getElementById(id); if(m&&m.classList.contains('open')) m.classList.remove('open'); });
   }
-  // Enter no campo de senha não precisa mais de tratamento manual aqui — dentro de um <form>,
-  // Enter em qualquer campo já dispara o "submit" nativamente (ver listener do #auth-form).
+  if(e.key === 'Enter' && document.activeElement.id === 'auth-senha') fazerLogin();
 });
 
 // ── AUTH ──
-// Login agora é acionado pelo "submit" do #auth-form (clique no botão OU Enter em qualquer
-// campo do formulário) — é o que faz o navegador reconhecer isso como um login de verdade e
-// oferecer "salvar senha"/autocompletar e-mails já usados em visitas futuras.
-var authFormEl = document.getElementById('auth-form');
-if(authFormEl) authFormEl.addEventListener('submit', function(e){ e.preventDefault(); fazerLogin(); });
-
 function fazerLogin(){
   var email = document.getElementById('auth-email').value.trim();
   var senha = document.getElementById('auth-senha').value;
@@ -6226,20 +6209,11 @@ function executarImportacaoBackup(dados, gruposSelecionados){
 // backup do banco de teste). A task anterior precisa estar CONCLUÍDA antes de uma nova ser
 // lançada — se ainda tem uma pendente (mesmo que a data fixa seguinte já tenha chegado), não
 // cria outra, só espera.
-function backupDatasFixasDoMes(ano, mes){
-  // Se a data cair num domingo, empurra pra segunda (pedido do usuário — só domingo, sábado não
-  // foi mencionado como problema pra essa rotina específica).
-  return [1,10,20].map(function(dia){
-    var d = new Date(ano, mes, dia);
-    if(d.getDay() === 0) d.setDate(d.getDate()+1);
-    return dataLocalYMD(d);
-  });
-}
 // Corrige tasks de backup antigas que caíram na lista errada por causa do bug do
 // TASKS_LISTAS_CONFIG[0] (a "lista de índice 0" por acaso é "Pendências com clientes" no seed
-// padrão, ordem:1 — não tem nada a ver com backup). Roda em QUALQUER ambiente (produção ou
-// staging) — diferente de lembreteBackup10DiasVerificar(), que só cria lembretes novos em
-// produção; aqui é uma correção de dado já existente, não deveria depender de ambiente.
+// padrão, ordem:1 — não tem nada a ver com backup). MANTIDA mesmo após o lembrete manual ser
+// removido (backup virou automático via Apps Script, rodada 415) — ainda corrige qualquer task
+// antiga que sobrou de quando o lembrete existia, sem depender de ambiente.
 function corrigirListaTasksBackup(){
   db.collection('tasks').where('tituloBackupAuto','==', true).get().then(function(qs){
     var listaOutrosOk = TASKS_LISTAS_CONFIG.find(function(l){ return l.id==='outros'; });
@@ -6255,49 +6229,12 @@ function corrigirListaTasksBackup(){
     });
   }).catch(function(e){ console.warn('Erro ao checar tasks de backup:', e); });
 }
-function lembreteBackup10DiasVerificar(){
-  if(!AMBIENTE_PRODUCAO) return;
-  var agora = new Date();
-  if((agora.getHours()*60 + agora.getMinutes()) < 9*60) return; // ainda não são 9h
-  var hojeStr = dataLocalYMD(agora);
-  db.doc('config/backup_status').get().then(function(snap){
-    var d = snap.exists ? snap.data() : {};
-    if(d.lembreteVerificadoEm === hojeStr) return; // já checou hoje
-
-    var datasFixas = backupDatasFixasDoMes(agora.getFullYear(), agora.getMonth());
-    if(datasFixas.indexOf(hojeStr) < 0){
-      db.doc('config/backup_status').set({ lembreteVerificadoEm: hojeStr }, {merge:true});
-      return;
-    }
-    // Evita duplicar se já existe uma task aberta com esse marcador — consulta só por
-    // igualdade (sem combinar com desigualdade de status) pra não exigir índice composto no
-    // Firestore, filtra "não concluída" em JS mesmo. Se a de antes ainda não foi concluída,
-    // não lança uma nova (pedido do usuário) — só espera até ela ser marcada como feita.
-    db.collection('tasks').where('tituloBackupAuto','==', true).get().then(function(qsExistente){
-      db.doc('config/backup_status').set({ lembreteVerificadoEm: hojeStr }, {merge:true});
-      var jaTemAberta = qsExistente.docs.some(function(d2){ return (d2.data().status||'pendente') !== 'concluida'; });
-      if(jaTemAberta) return;
-      db.collection('tasks').add({
-        titulo: '💾 Fazer backup do sistema', descricao: 'Backup programado (dia 1, 10 ou 20). Vá em Cadastros → Backup e clique em "Baixar backup agora".',
-        responsavel: 'ambos', prioridade: 'urgente', status: 'pendente', tituloBackupAuto: true,
-        // Bug corrigido: usava TASKS_LISTAS_CONFIG[0], ou seja, "a primeira lista que existir" —
-        // que por acaso é "Pendências com clientes" no seed padrão (ordem:1), não tem nada a ver
-        // com backup. O certo é procurar a lista "outros" pelo id de verdade (ver LISTAS_SEED_INICIAL),
-        // com fallback pra primeira lista só se "outros" não existir (ex: usuário renomeou/apagou).
-        prazo: hojeStr, proximoLembrete: hojeStr, listaId: (TASKS_LISTAS_CONFIG.find(function(l){ return l.id==='outros'; }) ? 'outros' : (TASKS_LISTAS_CONFIG[0]?TASKS_LISTAS_CONFIG[0].id:'')),
-        criadoEm: firebase.firestore.FieldValue.serverTimestamp()
-      }).then(function(){
-        notificarTelegram('💾 *Lembrete de backup*\n\nHoje é dia de backup programado (1, 10 ou 20). Acesse Cadastros → Backup pra gerar um novo.');
-        db.collection('notificacoes_sistema').add({
-          tipo:'backup_lembrete', titulo:'Lembrete de backup', mensagem:'Hoje é dia de backup programado.',
-          orcamentoId:'', propostaId:'', lida:false, criadoEm: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(function(e){ console.error('[erro silencioso #14]', e); });
-      }).catch(function(e){ console.error('[erro silencioso #15]', e); });
-    });
-  }).catch(function(e){ console.error('[erro silencioso #16]', e); });
-}
-setInterval(lembreteBackup10DiasVerificar, 60000);
-setTimeout(lembreteBackup10DiasVerificar, 8000);
+// lembreteBackup10DiasVerificar() foi REMOVIDA na rodada 415 — o backup virou automático via
+// Apps Script (gatilho de tempo + Conta de Serviço lendo o Firestore direto, salva no Drive),
+// então o lembrete manual (task + Telegram pedindo pra clicar em "Baixar backup agora") ficou
+// redundante e foi removido por decisão do usuário. O botão manual continua existindo em
+// Cadastros → Backup pra quem quiser gerar um backup avulso a qualquer momento — só o LEMBRETE
+// automático que sumiu, não a funcionalidade de exportar.
 
 // Migração única: unifica o antigo cadastro "tecnicos/" (só metadado, perfil sempre implícito)
 // numa nova coleção "usuarios/" com id = e-mail (necessário pra checagem de perfil no login e nas

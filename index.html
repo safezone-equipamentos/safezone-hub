@@ -624,12 +624,21 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
       <div class="auth-logo-text">SafeZone <span>HUB</span></div>
       <div class="auth-logo-sub">// conexões inteligentes</div>
       <div class="auth-boot-line">&gt; <span id="auth-boot-text"></span><span class="auth-boot-cursor"></span></div>
-      <label class="auth-label">E-mail</label>
-      <input type="email" class="auth-input" id="auth-email" placeholder="seu@email.com.br">
-      <label class="auth-label">Senha</label>
-      <input type="password" class="auth-input" id="auth-senha" placeholder="••••••••">
-      <button class="auth-btn" id="btn-login" onclick="fazerLogin()">Entrar</button>
-      <div class="auth-error" id="auth-error"></div>
+      <!-- Envolvido num <form> de verdade (com autocomplete="on" + name/autocomplete em cada
+           campo) de propósito — é só assim que o gerenciador de senhas do navegador (Chrome,
+           Edge etc.) reconhece o login e passa a oferecer "salvar senha" e sugerir e-mails já
+           usados. display:contents não muda nada do layout (os filhos continuam se comportando
+           como se estivessem direto dentro do .auth-card-content), só dá esse gancho pro
+           navegador. Envio agora acontece pelo evento "submit" do form (ver listener logo
+           abaixo), não mais por onclick/Enter tratados manualmente. -->
+      <form id="auth-form" autocomplete="on" style="display:contents">
+        <label class="auth-label" for="auth-email">E-mail</label>
+        <input type="email" class="auth-input" id="auth-email" name="email" autocomplete="username" placeholder="seu@email.com.br">
+        <label class="auth-label" for="auth-senha">Senha</label>
+        <input type="password" class="auth-input" id="auth-senha" name="password" autocomplete="current-password" placeholder="••••••••">
+        <button type="submit" class="auth-btn" id="btn-login">Entrar</button>
+        <div class="auth-error" id="auth-error"></div>
+      </form>
       <div class="auth-ia-badge"><img src="imagens/kstor-ia.png" alt="" style="height:38px;width:auto" onerror="this.style.display='none'"> Gestão com Inteligência Artificial</div>
     </div>
   </div>
@@ -781,7 +790,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 09/08/2026 · rodada 415</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 15/08/2026 · rodada 418</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -3703,7 +3712,7 @@ function irPara(tela){
     if(tela === 'tasks') renderTasks();
     if(tela === 'posvenda') renderPosvenda();
     if(tela === 'clientes') renderClientes();
-    if(tela === 'os') atualizarResumoPainelOS();
+    if(tela === 'os'){ atualizarResumoPainelOS(); aplicarFiltrosOS(); }
     if(tela === 'orcamentos') renderOrcamentos();
     if(tela === 'precos'){ renderProdutosGeral(); }
     if(tela === 'agenda') renderizarAgenda();
@@ -3746,7 +3755,8 @@ document.addEventListener('click', function(e){
   var btn = e.target.id ? e.target : e.target.closest('button[id]');
   if(!btn) return;
   switch(btn.id){
-    case 'btn-login':        fazerLogin(); break;
+    // 'btn-login' tratado pelo listener de "submit" do #auth-form (ver mais abaixo) — não
+    // duplicar aqui, senão o clique dispara fazerLogin() duas vezes.
     case 'btn-logout':       fazerLogout(); break;
     case 'btn-salvar-os':    salvarOS(); break;
     case 'btn-novo-tec':     abrirModalTecnico(); break;
@@ -3764,10 +3774,17 @@ document.addEventListener('keydown', function(e){
     var MODAIS_LEITURA = ['modal-historico','modal-lev'];
     MODAIS_LEITURA.forEach(function(id){ var m=document.getElementById(id); if(m&&m.classList.contains('open')) m.classList.remove('open'); });
   }
-  if(e.key === 'Enter' && document.activeElement.id === 'auth-senha') fazerLogin();
+  // Enter no campo de senha não precisa mais de tratamento manual aqui — dentro de um <form>,
+  // Enter em qualquer campo já dispara o "submit" nativamente (ver listener do #auth-form).
 });
 
 // ── AUTH ──
+// Login agora é acionado pelo "submit" do #auth-form (clique no botão OU Enter em qualquer
+// campo do formulário) — é o que faz o navegador reconhecer isso como um login de verdade e
+// oferecer "salvar senha"/autocompletar e-mails já usados em visitas futuras.
+var authFormEl = document.getElementById('auth-form');
+if(authFormEl) authFormEl.addEventListener('submit', function(e){ e.preventDefault(); fazerLogin(); });
+
 function fazerLogin(){
   var email = document.getElementById('auth-email').value.trim();
   var senha = document.getElementById('auth-senha').value;
@@ -7078,6 +7095,13 @@ function iniciarGestor(){
   carregarLeads();
   carregarServicos();
   carregarOportunidades();
+  // Digests diários (follow-up 14h30, alertas de material 9h/13h) — precisam do gestor logado
+  // pra passar nas regras do Firestore (config/{outroDoc} é gestor-only). Antes rodavam soltos
+  // no topo do script e disparavam antes do login terminar (ou pro perfil técnico, que nunca
+  // teve permissão), gerando "Missing or insufficient permissions" no console (rodada 417).
+  followup1430IniciarTimers();
+  materialAlerta9hIniciarTimers();
+  materialChegada13hIniciarTimers();
   irPara('dashboard');
   inicializarSidebarGrupos();
 }
@@ -7506,11 +7530,18 @@ function followup1430Verificar(){
     });
   }).catch(function(e){ console.error('[erro silencioso #31]', e); });
 }
-setInterval(followup1430Verificar, 60000);
-// Espera alguns segundos pro Firestore popular todasPropostasGlobal/todasPosvendaGlobal antes de
-// checar — do contrário, abrir o HUB após 14h30 marcaria o dia como "verificado" com os arrays
-// ainda vazios, perdendo o digest de verdade daquele dia.
-setTimeout(followup1430Verificar, 5000);
+// followup1430IniciarTimers() é chamada de dentro de iniciarGestor() (rodada 417) — antes disso
+// o setInterval/setTimeout ficavam soltos aqui no topo do script, disparando ANTES do login
+// terminar (ou pro perfil técnico, que não tem permissão nenhuma nessas rotinas). Resultado:
+// "Missing or insufficient permissions" no console — as regras do Firestore estão certas
+// (config/{outroDoc} libera pra gestor), o problema era rodar sem autenticação/perfil confirmado.
+function followup1430IniciarTimers(){
+  setInterval(followup1430Verificar, 60000);
+  // Espera alguns segundos pro Firestore popular todasPropostasGlobal/todasPosvendaGlobal antes de
+  // checar — do contrário, abrir o HUB após 14h30 marcaria o dia como "verificado" com os arrays
+  // ainda vazios, perdendo o digest de verdade daquele dia.
+  setTimeout(followup1430Verificar, 5000);
+}
 
 // Disparos diários de material — mesmo espírito do followup1430 (roda uma vez por dia, controlado
 // por um doc no Firestore, só funciona com o HUB aberto). Dois horários fixos: 9h pra confirmar com
@@ -7551,8 +7582,12 @@ function materialAlerta9hVerificar(){
     });
   }).catch(function(e){ console.error('[erro silencioso #33]', e); });
 }
-setInterval(materialAlerta9hVerificar, 60000);
-setTimeout(materialAlerta9hVerificar, 5000);
+// Mesmo motivo do followup1430IniciarTimers() acima — precisa rodar só depois do login de
+// gestor confirmado (rodada 417).
+function materialAlerta9hIniciarTimers(){
+  setInterval(materialAlerta9hVerificar, 60000);
+  setTimeout(materialAlerta9hVerificar, 5000);
+}
 
 function materialChegada13hColetar(){
   var hojeStr = dataLocalYMD(new Date());
@@ -7579,8 +7614,11 @@ function materialChegada13hVerificar(){
     });
   }).catch(function(e){ console.error('[erro silencioso #34]', e); });
 }
-setInterval(materialChegada13hVerificar, 60000);
-setTimeout(materialChegada13hVerificar, 5000);
+// Mesmo motivo dos dois acima — precisa rodar só depois do login de gestor confirmado (rodada 417).
+function materialChegada13hIniciarTimers(){
+  setInterval(materialChegada13hVerificar, 60000);
+  setTimeout(materialChegada13hVerificar, 5000);
+}
 
 var _dashBriefingSessaoChecada = false;
 function dashBriefingVerificarOuGerar(){
@@ -15367,6 +15405,14 @@ function iniciarListenerOrcamentos(){
     }
     if(document.getElementById('screen-agenda') && document.getElementById('screen-agenda').classList.contains('active')){
       renderizarAgenda();
+    }
+    // A coluna Proposta da tabela de OS depende de todasOrcamentosGlobal (busca o orçamento de
+    // origem pelo id). Sem isso, se a tabela de OS desenhasse antes desse listener terminar de
+    // carregar (ordem de chegada dos dois onSnapshot não é garantida), a coluna ficava travada em
+    // "—" pra sempre — nada nunca mandava ela redesenhar de novo, nem trocar de tela pra "OS" e
+    // voltar (rodada 417).
+    if(document.getElementById('screen-os') && document.getElementById('screen-os').classList.contains('active')){
+      aplicarFiltrosOS();
     }
     // Visita de Avaliação vive 100% aqui a partir da rodada 302 — dashboard e Rel. Técnico
     // precisam refletir mudanças de agendamento/relatório sem esperar o listener de OS.

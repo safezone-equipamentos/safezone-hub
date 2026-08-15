@@ -790,7 +790,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 15/08/2026 · rodada 418</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 15/08/2026 · rodada 420</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -3825,6 +3825,28 @@ function sessaoExpirada(){
 function sessaoLimparAtividade(){
   try{ localStorage.removeItem('sz_ultima_atividade'); }catch(e){}
 }
+// ── Limite MÁXIMO de sessão (30 dias) — independente de atividade ──
+// Diferente do timeout de inatividade acima (que é resetado a cada interação): mesmo que a
+// pessoa use o HUB todo santo dia sem nunca ficar 8h parada, o Firebase Auth por padrão
+// renovaria o token pra sempre, sem limite nenhum. Isso força um login novo a cada 30 dias
+// corridos desde o ÚLTIMO LOGIN de verdade, não importa quão ativo o uso seja — decisão do
+// usuário, rodada 419. Guarda em localStorage (não variável JS) pelo mesmo motivo do timeout de
+// inatividade: precisa sobreviver a fechar e reabrir o navegador.
+var SESSAO_LIMITE_MAXIMO_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
+function sessaoRegistrarInicioSeNecessario(){
+  try{
+    if(!localStorage.getItem('sz_sessao_iniciada_em')) localStorage.setItem('sz_sessao_iniciada_em', String(Date.now()));
+  }catch(e){}
+}
+function sessaoLimiteMaximoExpirado(){
+  try{
+    var inicio = parseInt(localStorage.getItem('sz_sessao_iniciada_em'), 10);
+    return !!inicio && (Date.now() - inicio) > SESSAO_LIMITE_MAXIMO_MS;
+  }catch(e){ return false; }
+}
+function sessaoLimparInicio(){
+  try{ localStorage.removeItem('sz_sessao_iniciada_em'); }catch(e){}
+}
 // Throttle pra não gravar no localStorage a cada pixel de mouse — só uma vez a cada 30s de uso ativo.
 var _sessaoUltimoRegistro = 0;
 ['mousedown','keydown','touchstart','wheel'].forEach(function(evt){
@@ -3838,6 +3860,7 @@ function fazerLogout(){
   unsubs.forEach(function(u){ u(); }); unsubs = [];
   _gestorIniciado = false;
   sessaoLimparAtividade();
+  sessaoLimparInicio();
   // location.reload() garante buscar o código mais recente do servidor a cada novo login — sem
   // isso, o logout só trocava a tela DENTRO da mesma página já carregada (podia ficar rodando
   // JS de dias atrás indefinidamente se a aba nunca fosse fechada, mesmo deslogando/logando
@@ -3871,6 +3894,15 @@ auth.onAuthStateChanged(function(user){
     // Precisa vir ANTES de qualquer outra coisa, senão o usuário vê a tela por um instante.
     if(sessaoExpirada()){
       sessaoLimparAtividade();
+      sessaoLimparInicio();
+      auth.signOut();
+      return;
+    }
+    // Limite MÁXIMO de sessão (30 dias) — mesma lógica acima, mas independente de atividade
+    // recente (rodada 419).
+    if(sessaoLimiteMaximoExpirado()){
+      sessaoLimparAtividade();
+      sessaoLimparInicio();
       auth.signOut();
       return;
     }
@@ -3893,9 +3925,13 @@ auth.onAuthStateChanged(function(user){
     // Sessão "recém-confirmada válida" — zera o relógio de inatividade aqui (login novo ou
     // reabertura dentro da janela de 8h). A checagem periódica abaixo cuida do resto.
     sessaoRegistrarAtividade();
+    // Marca o início da sessão só se ainda não existir — não é resetado por atividade (ver
+    // sessaoRegistrarInicioSeNecessario), só por um login novo de verdade.
+    sessaoRegistrarInicioSeNecessario();
     if(!window._sessaoIntervalId){
       window._sessaoIntervalId = setInterval(function(){
         if(sessaoExpirada()){ toast('Sessão encerrada por inatividade.', 'error'); fazerLogout(); }
+        else if(sessaoLimiteMaximoExpirado()){ toast('Sessão encerrada — limite de 30 dias atingido. Faça login novamente.', 'error'); fazerLogout(); }
       }, 5 * 60 * 1000); // checa a cada 5 min — suficiente pra 8h de tolerância, sem gastar bateria à toa
     }
     if(perfilAtual === 'gestor'){
@@ -7102,6 +7138,7 @@ function iniciarGestor(){
   followup1430IniciarTimers();
   materialAlerta9hIniciarTimers();
   materialChegada13hIniciarTimers();
+  tgVerificarLembretes30minIniciarTimer();
   irPara('dashboard');
   inicializarSidebarGrupos();
 }
@@ -7470,7 +7507,13 @@ function tgVerificarLembretes30min(){
     }
   });
 }
-setInterval(tgVerificarLembretes30min, 60000);
+// tgVerificarLembretes30minIniciarTimer() é chamada de dentro de iniciarGestor() (rodada 420) —
+// mesmo motivo dos três timers corrigidos na rodada 417/418: consistência com o resto do sistema,
+// mesmo esse aqui sendo mais inofensivo sozinho (só toca o Firestore se already achar algo em
+// todasOSGlobal, que fica vazio até o login terminar).
+function tgVerificarLembretes30minIniciarTimer(){
+  setInterval(tgVerificarLembretes30min, 60000);
+}
 
 // Digest das 14h30 — ponto único do dia pra revisar follow-up de propostas já enviadas
 // (aguardando retorno / em negociação) e pós-venda parado. Diferente do briefing da manhã
@@ -11513,7 +11556,7 @@ function renderizarLevantamentos(lista){
       '<td><span class="os-num">#' + (l.osNumero||'—') + '</span></td>' +
       '<td><div class="os-cliente">' + (l.osCliente||'—') + '</div>' + edicaoInfo + '</td>' +
       '<td><span class="badge badge-aguardando">' + (l.osTipo||'—') + '</span></td>' +
-      '<td style="font-size:11px">' + (l.tecnicoNome || (function(){ var t=(typeof listaTecnicos!=='undefined'?listaTecnicos:[]).find(function(x){return x.id===l.tecnicoId||(l.tecnicoEmail&&x.email===l.tecnicoEmail);}); return t?(t.nome||t.email||l.tecnicoEmail||'—'):l.tecnicoEmail||'—'; })()) + '</td>' +
+      '<td style="font-size:11px">' + escHtml(l.tecnicoNome || (function(){ var t=(typeof listaTecnicos!=='undefined'?listaTecnicos:[]).find(function(x){return x.id===l.tecnicoId||(l.tecnicoEmail&&x.email===l.tecnicoEmail);}); return t?(t.nome||t.email||l.tecnicoEmail||'—'):l.tecnicoEmail||'—'; })()) + '</td>' +
       '<td>' + statusHtml + '</td>' +
       '<td style="font-size:11px;color:var(--gray-500)">' + fmtData(l.enviadoEm) + '</td>' +
       '<td>' + (isPendente
@@ -19119,6 +19162,18 @@ function excluirOrcamento(){
   var orcId = _orcAtual.id;
   var orcCliente = _orcAtual.cliente||'';
   var orcLeadId = _orcAtual.leadId;
+  // Trava (rodada 419): apagar um orçamento com proposta fechada e/ou OS ainda ativa deixa esse
+  // vínculo "órfão" — a OS (ou a proposta) continua existindo apontando pra um orçamento que não
+  // existe mais. Foi exatamente essa a causa raiz investigada com o usuário do bug da coluna
+  // Proposta na tela de OS. Propostas perdidas/em negociação sem nada fechado ainda podem ser
+  // excluídas normalmente — não há risco de órfão nesses casos.
+  var propsDoOrc = (_orcAtual.propostaIds||[]).map(function(pid){ return todasPropostasGlobal.find(function(p){ return p.id===pid; }); }).filter(Boolean);
+  var temPropostaFechada = propsDoOrc.some(function(p){ return p.status === 'fechada'; });
+  var osAtivaVinculada = todasOSGlobal.some(function(o){ return o.origemOrcamentoPosVenda === orcId && ['encerrada','cancelada'].indexOf(o.status||'') < 0; });
+  if(temPropostaFechada || osAtivaVinculada){
+    toast('Este orçamento tem proposta fechada e/ou OS em andamento — não pode ser excluído por aqui. Cancele a OS (ou perca a proposta) antes.', 'error');
+    return;
+  }
   if(!confirm('Excluir o orçamento de "'+orcCliente+'"? Esta ação não pode ser desfeita.')) return;
   db.collection('orcamentos').doc(orcId).delete().then(function(){
     db.collection('visitas_avaliacao').doc(orcId).delete().catch(function(e){ console.error('[erro silencioso #101]', e); });

@@ -790,7 +790,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 15/08/2026 · rodada 420</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 15/08/2026 · rodada 421</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -5688,16 +5688,6 @@ var _taskFiltroStatus = '';
 var _taskAtual = null;
 var _taskMostrarConcluidas = false;
 var TASKS_LISTAS_CONFIG = []; // [{id,nome,ordem}] — carregado de config/tasks_listas, editável livremente
-// Responsável de task passou a ser dinâmico (rodada 352) — antes era um mapa fixo {renan,gabriel}
-// no próprio código, que não escalava pra múltiplos gestores e não tinha nenhuma relação com
-// quem estava de fato logado. Agora t.responsavel guarda o E-MAIL do gestor (bate com
-// usuarios/{email}) ou o valor especial 'ambos'. Mantemos um mapa só de exibição pros valores
-// legados 'renan'/'gabriel' (tasks antigas, criadas antes dessa mudança) — não são mais opções
-// atribuíveis, só continuam sendo entendidas visualmente pra não quebrar dado histórico.
-var TASK_RESPONSAVEL_LEGADO = {
-  renan:   {label:'Renan',   cor:'#5a8a0d'},
-  gabriel: {label:'Gabriel', cor:'#ea580c'}
-};
 var PALETA_USUARIOS = [
   {cor:'#5a8a0d', bg:'var(--green-light)'},
   {cor:'#c2410c', bg:'#fff7ed'},
@@ -5719,14 +5709,9 @@ function gestoresAtivos(){
   return (listaUsuarios||[]).filter(function(u){ return u.perfil === 'gestor' && u.ativo !== false; });
 }
 // Resolve informação de exibição (nome, cor, iniciais) pro valor salvo em t.responsavel ou
-// c.autor — cobre os 3 casos possíveis: e-mail de um gestor atual, 'ambos', ou um valor legado
-// ('renan'/'gabriel' de antes dessa mudança).
+// c.autor — cobre os 2 casos possíveis: e-mail de um gestor atual, ou o valor especial 'ambos'.
 function taskRespInfo(codigo){
   if(!codigo || codigo === 'ambos') return {label:'Ambos', cor:'#7c3aed', ini:'👥'};
-  if(TASK_RESPONSAVEL_LEGADO[codigo]){
-    var leg = TASK_RESPONSAVEL_LEGADO[codigo];
-    return {label:leg.label, cor:leg.cor, ini:leg.label.charAt(0).toUpperCase()};
-  }
   var u = (listaUsuarios||[]).find(function(x){ return x.email === codigo; });
   if(u) return {label:(u.nome||codigo).split(' ')[0], cor:corPorEmail(u.email).cor, ini:initiais(u.nome||codigo)};
   return {label:codigo, cor:'#9ca3af', ini:'?'};
@@ -6962,19 +6947,17 @@ function orcEhEstimativa(orc){
   });
 }
 
-// Nome do técnico da visita — cobre tanto o campo novo (tecnicoNome, rodada 302+) quanto o
-// campo legado (tecnico, string simples, usado antes disso).
+// Nome do técnico da visita.
 function visitaTecNome(v){
-  return (v && (v.tecnicoNome || v.tecnico)) || '';
+  return (v && v.tecnicoNome) || '';
 }
 
 // Data da visita como objeto Date, sempre à prova do bug de fuso horário: uma string 'YYYY-MM-DD'
 // sem horário é interpretada pelo navegador como meia-noite UTC, que em horário de Brasília
-// (UTC-3) já é o dia anterior — por isso SEMPRE ancora ao meio-dia antes de converter. Também
-// cobre o formato legado (Firestore Timestamp, com .toDate()).
+// (UTC-3) já é o dia anterior — por isso SEMPRE ancora ao meio-dia antes de converter.
 function visitaDataComoDate(v){
   if(!v || !v.data) return null;
-  return v.data.toDate ? v.data.toDate() : new Date(v.data + 'T12:00:00');
+  return new Date(v.data + 'T12:00:00');
 }
 
 // Gera objetos no mesmo formato que Dashboard/Agenda esperavam de "todasOSGlobal" pras visitas —
@@ -8780,9 +8763,6 @@ var todasOSGlobal = [];
 var filtrosAtivos = { tipoOS:'', status:'', tecnicoId:'', acaoPendente:false, mes:'', ano:'', campoData:'criadoEm' };
 var ordemAtiva = { campo:'', dir:1 }; // dir: 1=asc, -1=desc
 
-// Status que requerem ação do gestor
-var STATUS_ACAO = ['levantamento_recebido','atrasada'];
-// OS sem técnico ou sem agendamento em status ativo também geram alerta
 // Calcula se uma OS de Instalação tem um alerta pendente relacionado à separação de material.
 // Dois gatilhos independentes (o mais urgente prevalece):
 //  1) -1 dia antes da instalação, se ainda não está "separado" → urgente (risco real de atraso)
@@ -11452,16 +11432,10 @@ function _levSnapshot(){
     if(!porOS[chave] || t > porOS[chave]._t){ l._t = t; porOS[chave] = l; }
   });
   var lista = Object.values(porOS).map(function(l){
-    if(l.orcamentoId){
-      // Levantamento de Visita de Avaliação (rodada 302+) — vive no orçamento, sem OS por trás.
-      // "Enviado"/resolvido = já existe proposta gerada a partir dessa visita.
-      var orcLev = todasOrcamentosGlobal.find(function(o){ return o.id === l.orcamentoId; });
-      l._osStatus = (orcLev && orcLev.propostaIds && orcLev.propostaIds.length) ? 'proposta_gerada' : 'levantamento_recebido';
-    } else {
-      // Levantamento legado, vinculado a uma OS antiga
-      var os = todasOSGlobal.find(function(o){ return o.id === l.osId; });
-      l._osStatus = os ? os.status : 'levantamento_recebido';
-    }
+    // Levantamento de Visita de Avaliação — vive no orçamento, sem OS por trás.
+    // "Enviado"/resolvido = já existe proposta gerada a partir dessa visita.
+    var orcLev = todasOrcamentosGlobal.find(function(o){ return o.id === l.orcamentoId; });
+    l._osStatus = (orcLev && orcLev.propostaIds && orcLev.propostaIds.length) ? 'proposta_gerada' : 'levantamento_recebido';
     return l;
   }).sort(function(a,b){ return b._t - a._t; });
   window._todasLevGlobal = lista; // salvar para filtros
@@ -13010,9 +12984,7 @@ function gpConfirmarModalMarca(){
 function gpLevantamentosDoOrcamento(){
   if(!gpOrcAtual) return [];
   return (_ultimosLevTodos||[]).filter(function(l){
-    if(l.orcamentoId) return l.orcamentoId === gpOrcAtual.id;
-    // Levantamento legado (antes da rodada 302) — casa por osId batendo com alguma visita do orçamento
-    return (gpOrcAtual.visitas||[]).some(function(v){ return v.osId === l.osId; });
+    return l.orcamentoId === gpOrcAtual.id;
   }).sort(function(a,b){
     var ta = a.enviadoEm ? (a.enviadoEm.toMillis?a.enviadoEm.toMillis():0) : 0;
     var tb = b.enviadoEm ? (b.enviadoEm.toMillis?b.enviadoEm.toMillis():0) : 0;
@@ -13176,7 +13148,11 @@ function enviarLevantamento(){
     return db.doc('os/' + osParaChecklist.id).update({ status: 'levantamento_recebido' });
   }).then(function(){
     if(!osParaChecklist._isVisitaOrc){
-      // Fluxo legado (OS antiga, antes da rodada 302) — mantém o mesmo melhor-esforço de antes.
+      // Checklist de OS REAL (Instalação/Manutenção) — diferente da Visita de Avaliação (que usa
+      // visitas_avaliacao + listener do gestor pra propagar). Aqui o técnico grava direto em
+      // os/{id} (linha acima) e a notificação sai daqui mesmo. NÃO é fluxo legado — é o caminho
+      // normal de hoje pra qualquer relatório técnico de OS que não seja Visita de Avaliação
+      // (comentário anterior estava errado, corrigido na auditoria da rodada 421).
       notificarTelegram('🔔 *Novo relatório técnico!*\nOrçamento #'+osParaChecklist.numero+' — '+osParaChecklist.cliente+'\nAcesse o HUB para revisar e gerar a proposta.');
       db.collection('notificacoes_sistema').add({
         tipo:'relatorio_tecnico', titulo:'Novo relatório técnico',
@@ -19312,7 +19288,13 @@ function waMontarSnapshotProposta(ctx){
 // existe UM link por proposta, e ele sempre reflete o estado mais recente.
 function waObterTokenProposta(prop){
   if(prop.linkToken) return Promise.resolve(prop.linkToken);
-  var token = 'tk'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  // crypto.getRandomValues() (nativo do navegador) em vez de Math.random() — o token vira a
+  // ÚNICA proteção do link público da proposta (propostas_publicas/{token} tem "allow read: if
+  // true" nas regras do Firestore), então precisa ser criptograficamente forte, não só
+  // "aleatório o suficiente". 16 bytes = 128 bits de entropia real.
+  var bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  var token = 'tk'+Array.from(bytes).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
   return db.collection('propostas').doc(prop.id).update({linkToken: token}).then(function(){
     prop.linkToken = token;
     return token;
@@ -19420,7 +19402,10 @@ function salvarConfirmarEnvio(){
       renderHistoricoContatosProposta(_propAtual);
       // Sincronizar com lead vinculado
       var leadIdParaAtualizar = _propAtual.leadId;
-      // Fallback: buscar lead pela OS quando leadId não está na proposta (Fluxo A legado)
+      // Fallback: busca o lead pela OS quando leadId não resolveu na criação da proposta —
+      // ainda pode acontecer hoje com propostas originadas de checklist de OS real (não Visita
+      // de Avaliação), não é exclusivo de dado antigo (comentário anterior estava errado,
+      // corrigido na auditoria da rodada 421).
       if(!leadIdParaAtualizar && _propAtual.osId){
         var leadPelaOS = todasLeadsGlobal.find(function(l){ return l.osVinculadaId === _propAtual.osId; });
         if(leadPelaOS) leadIdParaAtualizar = leadPelaOS.id;
@@ -19765,17 +19750,13 @@ function excluirLead(){
     if(orcVinc.propostaIds) orcVinc.propostaIds.forEach(function(pid){
       promessas.push(db.collection('propostas').doc(pid).delete());
     });
-    // Visita(s) de avaliação — modelo atual guarda o osId dentro de cada item de orc.visitas[],
-    // não mais em orc.osId (campo legado de antes da migração pra múltiplos serviços). Sem isso,
-    // a OS ficava órfã no banco e continuava aparecendo na Agenda mesmo com o lead já excluído.
+    // Visita(s) de avaliação — o osId/relatorioId de cada visita vive dentro de orc.visitas[].
     if(orcVinc.visitas && orcVinc.visitas.length){
       orcVinc.visitas.forEach(function(v){
         if(v.osId) promessas.push(db.collection('os').doc(v.osId).delete());
         if(v.relatorioId) promessas.push(db.collection('levantamentos').doc(v.relatorioId).delete());
       });
     }
-    if(orcVinc.osId) promessas.push(db.collection('os').doc(orcVinc.osId).delete()); // compatibilidade com orçamentos antigos
-    if(orcVinc.relatorioId) promessas.push(db.collection('levantamentos').doc(orcVinc.relatorioId).delete());
   }
   Promise.all(promessas)
     .then(function(){ toast('Lead'+(orcVinc?' e orçamento':'')+' excluídos.','success'); fecharModal('modal-lead-det'); })

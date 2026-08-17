@@ -790,7 +790,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 422</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 423</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -1556,6 +1556,9 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
               <option value="perdido">Perdido ❌</option>
             </select>
             <input type="text" class="form-input" id="filtro-orc-busca" placeholder="Buscar cliente..." style="height:34px;font-size:12px;flex:1;min-width:180px" oninput="renderOrcamentos()">
+            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-600);white-space:nowrap">
+              <input type="checkbox" id="orc-mostrar-perdidos-fechados" onchange="toggleOrcMostrarPerdidosFechados(this.checked)"> Mostrar perdidos e fechados
+            </label>
             <button class="btn btn-secondary btn-sm" onclick="limparFiltrosOrcamentos()">✕ Limpar</button>
           </div>
         </div>
@@ -15530,6 +15533,23 @@ function orcRequerAtencao(o){
 }
 
 var _orcFiltroAtencao = false;
+// Por padrão, a tabela de Orçamentos esconde 'perdido' e 'fechado' (exceto fechado com OS de
+// instalação ainda ativa — mesma checagem já usada na badge "🔧 Aguardando instalação"). Esse
+// checkbox revela os dois de volta. Decisão do usuário: "ativos" só devia mostrar quem ainda
+// precisa de interação (rodada 423).
+var _orcMostrarPerdidosFechados = false;
+function toggleOrcMostrarPerdidosFechados(v){
+  _orcMostrarPerdidosFechados = v;
+  renderOrcamentos();
+}
+// Mesma checagem usada na badge da linha (ver renderOrcamentos) — um orçamento fechado que
+// ainda tem OS de instalação em andamento continua precisando de acompanhamento, então nunca
+// fica escondido por padrão, mesmo com o checkbox desmarcado.
+function orcFechadoComOSAtiva(o){
+  return todasOSGlobal.some(function(os2){
+    return os2.origemOrcamentoPosVenda === o.id && (os2.tipoOS||'') === 'Instalação' && ['encerrada','cancelada'].indexOf(os2.status||'') < 0;
+  });
+}
 
 function atualizarKPIsOrcamentos(){
   var ativos = todasOrcamentosGlobal.filter(function(o){ return ['fechado','perdido'].indexOf(o.status||'') < 0; });
@@ -15568,8 +15588,10 @@ function filtrarOrcamentosKPI(tipo){
 
 function limparFiltrosOrcamentos(){
   _orcFiltroAtencao = false;
+  _orcMostrarPerdidosFechados = false;
   var s = document.getElementById('filtro-orc-status'); if(s) s.value = '';
   var b = document.getElementById('filtro-orc-busca'); if(b) b.value = '';
+  var c = document.getElementById('orc-mostrar-perdidos-fechados'); if(c) c.checked = false;
   renderOrcamentos();
 }
 
@@ -18108,7 +18130,14 @@ function renderOrcamentos(){
 
   var lista = todasOrcamentosGlobal.filter(function(o){
     if(_orcFiltroAtencao){ if(!orcRequerAtencao(o)) return false; }
-    else if(statusFiltro && o.status !== statusFiltro) return false;
+    else if(statusFiltro){ if(o.status !== statusFiltro) return false; }
+    else if(!_orcMostrarPerdidosFechados){
+      // Escolha explícita no dropdown (acima) sempre vence — esse bloco só se aplica em
+      // "Todos os status". Perdido sempre esconde; fechado esconde a não ser que ainda tenha
+      // OS de instalação em andamento (aí precisa continuar visível pra acompanhar).
+      if(o.status === 'perdido') return false;
+      if(o.status === 'fechado' && !orcFechadoComOSAtiva(o)) return false;
+    }
     if(busca){
       var haystack = ((o.cliente||'')+(o.leadNome||'')+(o.numero||'')).toLowerCase();
       if(haystack.indexOf(busca) < 0) return false;
@@ -18141,9 +18170,7 @@ function renderOrcamentos(){
     // Mesmo badge calculado da sub-linha — se o orçamento já fechou mas ainda tem alguma OS de
     // Instalação vinculada não concluída, sinaliza aqui também, já que essa tabela é o primeiro
     // lugar que o usuário olha.
-    var temInstalacaoPendenteRow = o.status === 'fechado' && todasOSGlobal.some(function(os2){
-      return os2.origemOrcamentoPosVenda === o.id && (os2.tipoOS||'') === 'Instalação' && ['encerrada','cancelada'].indexOf(os2.status||'') < 0;
-    });
+    var temInstalacaoPendenteRow = o.status === 'fechado' && orcFechadoComOSAtiva(o);
     var badge = '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:'+st.bg+';color:'+st.color+'">'+st.label+'</span>'+(orcEhEstimativa(o)?' <span class="badge badge-pendente" style="cursor:default" onmouseenter="acaoTooltipShow(\'Valor estimado via Kit Rápido — orçamento ainda sem Visita de Avaliação\', event)" onmouseleave="acaoTooltipHide()">≈</span>':'')+
       (temInstalacaoPendenteRow ? ' <span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#fff7ed;color:#c2410c">🔧 Aguardando instalação</span>' : '');
     var visita = (o.visitas&&o.visitas.length) ? (function(){

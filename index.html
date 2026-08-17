@@ -790,7 +790,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 425</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 426</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -3100,13 +3100,32 @@ function toggleMenuMobileGestor(forcarAbrir){
   var abrir = (typeof forcarAbrir === 'boolean') ? forcarAbrir : !sb.classList.contains('sb-aberta');
   sb.classList.toggle('sb-aberta', abrir);
   if(backdrop) backdrop.style.display = abrir ? 'block' : 'none';
-  // Trava o scroll do body por trás da gaveta aberta, só no mobile.
-  document.body.style.overflow = (abrir && window.innerWidth <= 640) ? 'hidden' : '';
+  // Trava o scroll do body por trás da gaveta aberta, só no mobile. CORRIGIDO (rodada 426):
+  // antes mexia em document.body.style.overflow (shorthand) incondicionalmente, mesmo fora do
+  // mobile — e como essa função é chamada pelo listener de resize toda vez que a janela cruza
+  // ou já está acima de 640px (linha abaixo), isso limpava sem querer, a CADA redimensionamento
+  // de janela no desktop, a trava permanente overflow-y:hidden aplicada no boot (revelarApp) —
+  // era exatamente isso que causava o "bug do topo travado" de forma intermitente, sem relação
+  // nenhuma com qual tela pra qual, e que só um F5 resolvia (reaplica a trava do zero).
+  if(window.innerWidth <= 640){
+    document.body.style.overflow = abrir ? 'hidden' : '';
+  }
 }
 // Se a tela crescer além de 640px com a gaveta aberta (ex: girar o celular, ou redimensionar
 // janela de desktop), fecha e destrava o scroll — evita ficar "preso" num estado mobile.
 window.addEventListener('resize', function(){
-  if(window.innerWidth > 640) toggleMenuMobileGestor(false);
+  if(window.innerWidth > 640){
+    toggleMenuMobileGestor(false);
+    // Reforço defensivo (rodada 426): reaplica a trava de overflow do layout desktop a cada
+    // resize, caso algum outro código (hoje ou no futuro) mexa em body/html.style.overflow
+    // sem querer — sem isso, esse bug (o "topo travado") pode voltar por um caminho diferente
+    // do que já corrigimos, e é difícil de flagrar de novo (só aparece depois de redimensionar
+    // a janela, não imediatamente).
+    if(perfilAtual === 'gestor'){
+      document.documentElement.style.overflowY = 'hidden';
+      document.body.style.overflowY = 'hidden';
+    }
+  }
 });
 
 // ── PDV — venda avulsa de produtos (rodada 386+) ──

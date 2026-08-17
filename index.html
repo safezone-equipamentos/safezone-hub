@@ -790,7 +790,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 15/08/2026 · rodada 421</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 422</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -21172,6 +21172,89 @@ function gpJsonReparar(str){
     .replace(/[\u0000-\u0009\u000b\u000c\u000e-\u001f]/g, '');
 }
 
+// Interpreta a resposta de texto da IA (Gemini ou Groq visão — mesmo formato de saída nos
+// dois casos) e extrai o JSON de dados do orçamento, com as mesmas 3 tentativas de reparo já
+// usadas antes (json direto, gpJsonReparar, ou pegar só o trecho entre chaves).
+function gpErpParsearRespostaIA(raw, origemLabel){
+  var clean = (raw||'').replace(/```json|```/g,'').trim();
+  try{ return JSON.parse(clean); }
+  catch(e1){
+    try{ return JSON.parse(gpJsonReparar(clean)); }
+    catch(e2){
+      var m = clean.match(/\{[\s\S]*\}/);
+      if(m){
+        try{ return JSON.parse(m[0]); }
+        catch(e3){ return JSON.parse(gpJsonReparar(m[0])); }
+      }
+      throw new Error('Não foi possível interpretar a resposta da IA'+(origemLabel?' ('+origemLabel+')':'')+'. Tente novamente.');
+    }
+  }
+}
+
+// ── Fallback de visão pro Groq (rodada 422) — só entra em ação se o Gemini falhar mesmo após
+// o retry automático do proxy. Carrega pdf.js sob demanda (só quando precisa, não pesa no
+// carregamento normal da tela), renderiza cada página do PDF em imagem JPEG em resolução 2x
+// (maximiza a qualidade de leitura do modelo de visão) e manda pro provider 'groq_visao'.
+var _pdfJsCarregando = null;
+function gpErpCarregarPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve();
+  if(_pdfJsCarregando) return _pdfJsCarregando;
+  _pdfJsCarregando = new Promise(function(resolve, reject){
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js';
+    s.onload = function(){
+      try{
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+        resolve();
+      }catch(e){ reject(e); }
+    };
+    s.onerror = function(){ reject(new Error('Não foi possível carregar o leitor de PDF (pdf.js).')); };
+    document.head.appendChild(s);
+  });
+  return _pdfJsCarregando;
+}
+function gpErpRenderizarPdfEmImagens(pdfBase64){
+  return gpErpCarregarPdfJs().then(function(){
+    var bin = atob(pdfBase64);
+    var arr = new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    return pdfjsLib.getDocument({data:arr}).promise;
+  }).then(function(pdf){
+    // Máximo de 5 páginas — mesmo limite que o modelo de visão da Groq aceita por chamada;
+    // orçamento do BomSaldo normalmente tem 1-2.
+    var numPaginas = Math.min(pdf.numPages, 5);
+    var promessas = [];
+    var _loop = function(p){
+      promessas.push(pdf.getPage(p).then(function(pagina){
+        var viewport = pagina.getViewport({scale:2});
+        var canvas = document.createElement('canvas');
+        canvas.width = viewport.width; canvas.height = viewport.height;
+        return pagina.render({canvasContext:canvas.getContext('2d'), viewport:viewport}).promise.then(function(){
+          return canvas.toDataURL('image/jpeg', 0.92).split(',')[1]; // remove o prefixo data:image/jpeg;base64,
+        });
+      }));
+    };
+    for(var p=1; p<=numPaginas; p++) _loop(p);
+    return Promise.all(promessas);
+  });
+}
+function gpErpTentarGroqVisao(prompt, status){
+  if(status){ status.textContent='✦ Gemini indisponível — tentando via Groq (visão)...'; status.style.color='#6b7280'; }
+  return gpErpRenderizarPdfEmImagens(_gpErpPdfBase64).then(function(imagens){
+    return fetch(AI_PROXY_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // evita pre-flight — ver nota em chamarKsToRIA
+      body:JSON.stringify({ provider:'groq_visao', imagens:imagens, user:prompt })
+    });
+  })
+  .then(function(res){ if(!res.ok) throw new Error('Erro '+res.status); return res.json(); })
+  .then(function(data){
+    if(data.error) throw new Error(data.error.message||'Erro no fallback de visão');
+    var raw = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+    return gpErpParsearRespostaIA(raw, 'via Groq');
+  });
+}
+
 function gpErpChamarGemini(){
   if(!_gpErpPdfBase64){ toastCampo('Selecione o arquivo PDF primeiro.', 'gp-erp-drop'); return; }
   if(_gpErpDestinoIdx==null){ toastCampo('Selecione o serviço de destino primeiro.', 'gp-erp-servicos-botoes'); return; }
@@ -21203,24 +21286,23 @@ function gpErpChamarGemini(){
   .then(function(data){
     if(data.error) throw new Error(data.error.message||'Erro no proxy de IA');
     var raw = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-    var clean = raw.replace(/```json|```/g,'').trim();
-    var parsed;
-    try{ parsed = JSON.parse(clean); }
-    catch(e1){
-      try{ parsed = JSON.parse(gpJsonReparar(clean)); }
-      catch(e2){
-        var m = clean.match(/\{[\s\S]*\}/);
-        if(m){
-          try{ parsed = JSON.parse(m[0]); }
-          catch(e3){ parsed = JSON.parse(gpJsonReparar(m[0])); }
-        } else { throw new Error('Não foi possível interpretar a resposta da IA. Tente novamente.'); }
-      }
-    }
+    return gpErpParsearRespostaIA(raw);
+  })
+  .catch(function(e){
+    clearTimeout(gpErpTimeoutId);
+    // Gemini falhou mesmo depois do retry automático do proxy — tenta o fallback de visão
+    // pelo Groq antes de desistir de vez. Não tenta fallback se o próprio usuário cancelou
+    // (não existe hoje, mas por precaução) — qualquer outro erro (demanda, timeout, parsing)
+    // vale a tentativa, já que o custo de tentar é só mais alguns segundos de espera.
+    return gpErpTentarGroqVisao(prompt, status);
+  })
+  .then(function(parsed){
+    if(!parsed) return; // já tratado (erro final abaixo, ou sucesso já mostrado)
     _gpErpParsed = parsed;
     gpErpMostrarRevisao(parsed);
   })
   .catch(function(e){
-    var msg = e.name==='AbortError' ? 'A KsToR-IA demorou demais para responder (45s). Tente novamente.' : (e.message||'Erro ao processar.');
+    var msg = e.name==='AbortError' ? 'A KsToR-IA demorou demais para responder (45s). Tente novamente.' : (e.message||'Erro ao processar (Gemini e Groq falharam).');
     if(status){ status.textContent='✕ '+msg; status.style.color='#dc2626'; }
   })
   .finally(function(){ clearTimeout(gpErpTimeoutId); if(btn) btn.disabled = false; });

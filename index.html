@@ -790,7 +790,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 424</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 425</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -21199,19 +21199,47 @@ function gpJsonReparar(str){
     .replace(/[\u0000-\u0009\u000b\u000c\u000e-\u001f]/g, '');
 }
 
+// Extrai o PRIMEIRO objeto JSON completo de um texto, contando chaves de abertura/fechamento
+// de verdade (ignora chaves dentro de strings) — ao contrário de um regex guloso (\{[\s\S]*\}),
+// não se confunde se sobrar QUALQUER coisa com chave depois do JSON fechar (a IA repetindo o
+// resultado, um comentário de exemplo com chaves, etc.). Devolve null se nunca fechar direito.
+function extrairPrimeiroJSON(texto){
+  var inicio = texto.indexOf('{');
+  if(inicio < 0) return null;
+  var profundidade = 0, dentroString = false, escapando = false;
+  for(var i=inicio; i<texto.length; i++){
+    var ch = texto[i];
+    if(escapando){ escapando = false; continue; }
+    if(ch === '\\' && dentroString){ escapando = true; continue; }
+    if(ch === '"'){ dentroString = !dentroString; continue; }
+    if(dentroString) continue;
+    if(ch === '{') profundidade++;
+    else if(ch === '}'){
+      profundidade--;
+      if(profundidade === 0) return texto.slice(inicio, i+1);
+    }
+  }
+  return null;
+}
+
 // Interpreta a resposta de texto da IA (Gemini ou Groq visão — mesmo formato de saída nos
-// dois casos) e extrai o JSON de dados do orçamento, com as mesmas 3 tentativas de reparo já
-// usadas antes (json direto, gpJsonReparar, ou pegar só o trecho entre chaves).
+// dois casos) e extrai o JSON de dados do orçamento. 4 tentativas em ordem crescente de
+// esforço; a última SEMPRE cai na mensagem amigável — nenhum erro nativo do JSON.parse deve
+// vazar pro usuário sem passar por aqui (bug corrigido na rodada 425: o catch mais interno
+// antes deixava um SyntaxError cru escapar direto pra tela).
 function gpErpParsearRespostaIA(raw, origemLabel){
   var clean = (raw||'').replace(/```json|```/g,'').trim();
   try{ return JSON.parse(clean); }
   catch(e1){
     try{ return JSON.parse(gpJsonReparar(clean)); }
     catch(e2){
-      var m = clean.match(/\{[\s\S]*\}/);
-      if(m){
-        try{ return JSON.parse(m[0]); }
-        catch(e3){ return JSON.parse(gpJsonReparar(m[0])); }
+      var extraido = extrairPrimeiroJSON(clean);
+      if(extraido){
+        try{ return JSON.parse(extraido); }
+        catch(e3){
+          try{ return JSON.parse(gpJsonReparar(extraido)); }
+          catch(e4){ /* esgotou as tentativas — cai no erro final abaixo */ }
+        }
       }
       throw new Error('Não foi possível interpretar a resposta da IA'+(origemLabel?' ('+origemLabel+')':'')+'. Tente novamente.');
     }

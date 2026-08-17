@@ -790,7 +790,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 423</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 424</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -21228,10 +21228,10 @@ function gpErpCarregarPdfJs(){
   if(_pdfJsCarregando) return _pdfJsCarregando;
   _pdfJsCarregando = new Promise(function(resolve, reject){
     var s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js';
+    s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.3.122/legacy/build/pdf.min.js';
     s.onload = function(){
       try{
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.3.122/legacy/build/pdf.worker.min.js';
         resolve();
       }catch(e){ reject(e); }
     };

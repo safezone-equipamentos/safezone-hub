@@ -794,7 +794,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 427</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 428</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -7807,10 +7807,7 @@ function dashBriefingGerar(manual){
   chamarKsToRIA(sys, usr, {temperature:0.5, max_tokens:500})
   .then(function(data){
     var txt = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-    txt = txt.replace(/```json|```/g,'').trim();
-    var m = txt.match(/\{[\s\S]*\}/);
-    if(!m) throw new Error('Resposta inesperada da IA.');
-    var out = JSON.parse(m[0]);
+    var out = iaExtrairJSON(txt, 'briefing');
     var payload = {
       resumo: out.resumo||'', promissores: out.promissores||[],
       contadores: dados.contadores, dataGeracao: dataLocalYMD(new Date()),
@@ -8497,10 +8494,7 @@ function tasksIAGerarResumo(){
   chamarKsToRIA(sys, usr, {temperature:0.4, max_tokens:500})
   .then(function(data){
     var txt = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-    txt = txt.replace(/```json|```/g,'').trim();
-    var m = txt.match(/\{[\s\S]*\}/);
-    if(!m) throw new Error('Resposta inesperada da IA.');
-    var out = JSON.parse(m[0]);
+    var out = iaExtrairJSON(txt, 'resumo de tasks');
     var porResp = out.porResponsavel || {};
     var blocos = '';
     // "ambos" sempre primeiro (bloco neutro/geral), depois cada gestor na ordem que a IA
@@ -15285,10 +15279,7 @@ function analisarIntencaoLead(retorno, obs, contatos){
     if(!aEl) return; // modal foi fechado durante o fetch
 
     var txt = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-    txt = txt.replace(/```json|```/g,'').trim();
-    var m = txt.match(/\{[\s\S]*\}/);
-    if(!m){ aEl.style.display='none'; return; }
-    var res; try{ res=JSON.parse(m[0]); }catch(e){ aEl.style.display='none'; return; }
+    var res; try{ res = iaExtrairJSON(txt, 'alerta de lead'); }catch(e){ aEl.style.display='none'; return; }
     var temAlerta = res.alerta===true;
 
     // Temperatura
@@ -18416,10 +18407,7 @@ function analisarIntencaoOrc(obs, contatos, ids){
     if(!aEl) return;
     var txt = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
     console.log('[KsToR-IA/analisarIntencaoOrc] resposta bruta da IA:', txt);
-    txt = txt.replace(/```json|```/g,'').trim();
-    var m = txt.match(/\{[\s\S]*\}/);
-    if(!m){ console.error('[KsToR-IA/analisarIntencaoOrc] Não achei um JSON na resposta — escondendo o alerta.', txt); aEl.style.display='none'; return; }
-    var res; try{ res=JSON.parse(m[0]); }catch(e){ console.error('[KsToR-IA/analisarIntencaoOrc] JSON.parse falhou — escondendo o alerta.', e, m[0]); aEl.style.display='none'; return; }
+    var res; try{ res = iaExtrairJSON(txt, 'alerta de orçamento'); }catch(e){ console.error('[KsToR-IA/analisarIntencaoOrc] Não foi possível interpretar a resposta — escondendo o alerta.', e, txt); aEl.style.display='none'; return; }
     console.log('[KsToR-IA/analisarIntencaoOrc] resultado interpretado:', res);
 
     // Nota: a IA NÃO altera mais a temperatura do lead automaticamente — isso é decidido
@@ -21279,12 +21267,14 @@ function extrairPrimeiroJSON(texto){
   return null;
 }
 
-// Interpreta a resposta de texto da IA (Gemini ou Groq visão — mesmo formato de saída nos
-// dois casos) e extrai o JSON de dados do orçamento. 4 tentativas em ordem crescente de
+// Interpreta a resposta de texto de QUALQUER chamada de IA do HUB (Gemini, Groq texto, Groq
+// visão — mesmo formato de saída nos três casos) que espera JSON de volta. Usada por Briefing,
+// Resumo de Tasks, Gerador/ERP e os alertas de intenção do Lead — generalizada na rodada 428
+// depois do mesmo bug (erro cru de JSON.parse vazando pra tela) aparecer em mais de um lugar,
+// cada um com sua própria versão frágil da mesma lógica. 4 tentativas em ordem crescente de
 // esforço; a última SEMPRE cai na mensagem amigável — nenhum erro nativo do JSON.parse deve
-// vazar pro usuário sem passar por aqui (bug corrigido na rodada 425: o catch mais interno
-// antes deixava um SyntaxError cru escapar direto pra tela).
-function gpErpParsearRespostaIA(raw, origemLabel){
+// vazar pro usuário sem passar por aqui.
+function iaExtrairJSON(raw, origemLabel){
   var clean = (raw||'').replace(/```json|```/g,'').trim();
   try{ return JSON.parse(clean); }
   catch(e1){
@@ -21363,7 +21353,7 @@ function gpErpTentarGroqVisao(prompt, status){
   .then(function(data){
     if(data.error) throw new Error(data.error.message||'Erro no fallback de visão');
     var raw = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-    return gpErpParsearRespostaIA(raw, 'via Groq');
+    return iaExtrairJSON(raw, 'via Groq');
   });
 }
 
@@ -21398,7 +21388,7 @@ function gpErpChamarGemini(){
   .then(function(data){
     if(data.error) throw new Error(data.error.message||'Erro no proxy de IA');
     var raw = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-    return gpErpParsearRespostaIA(raw);
+    return iaExtrairJSON(raw);
   })
   .catch(function(e){
     clearTimeout(gpErpTimeoutId);

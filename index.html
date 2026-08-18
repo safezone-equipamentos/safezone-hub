@@ -660,6 +660,10 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
   <div id="faixa-staging" style="display:none;background:#f59e0b;color:#000;text-align:center;font-size:12px;font-weight:800;padding:5px;letter-spacing:.5px">
     🧪 AMBIENTE DE TESTE (staging) — dados aqui não afetam o sistema real
   </div>
+  <div id="faixa-nova-versao" style="display:none;background:#79B913;color:#fff;text-align:center;font-size:12px;font-weight:700;padding:6px 12px">
+    ✨ Uma nova versão do HUB está disponível.
+    <button onclick="location.reload()" style="margin-left:8px;background:#fff;color:#5a8a0d;border:none;border-radius:6px;padding:3px 12px;font-weight:800;cursor:pointer;font-size:11px">Atualizar agora</button>
+  </div>
   <div class="topbar">
     <button id="btn-menu-mobile" onclick="toggleMenuMobileGestor()" style="background:none;border:1px solid var(--gray-200);color:var(--gray-700);border-radius:8px;width:34px;height:34px;font-size:16px;line-height:1;cursor:pointer;margin-right:6px;flex-shrink:0" title="Menu" aria-label="Abrir menu">☰</button>
     <div class="topbar-logo">SafeZone<span>HUB</span></div>
@@ -790,7 +794,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 426</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 17/08/2026 · rodada 427</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -2791,6 +2795,14 @@ const auth = firebase.auth();
 // Aviso visual — nunca deixa dúvida sobre qual banco está conectado. Roda antes de qualquer
 // outra coisa, então já aparece mesmo antes do login.
 const VERSAO_HUB = '1.0';
+// Número da rodada rodando AGORA nesta aba, capturado do próprio texto do rodapé antes dele
+// ser trocado por "v1.0" em produção logo abaixo — é o valor que hubVerificarNovaVersao()
+// compara contra o que está publicado no servidor (rodada 427).
+var _hubRodadaAtual = (function(){
+  var el = document.getElementById('rodape-versao');
+  var m = el && el.textContent.match(/rodada (\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+})();
 document.addEventListener('DOMContentLoaded', function(){
   if(!AMBIENTE_PRODUCAO){
     var f = document.getElementById('faixa-staging'); if(f) f.style.display = 'block';
@@ -2804,6 +2816,32 @@ document.addEventListener('DOMContentLoaded', function(){
     var rv = document.getElementById('rodape-versao'); if(rv) rv.textContent = 'v' + VERSAO_HUB;
   }
   iniciarTerminalLogin();
+});
+// ── Aviso de nova versão disponível (rodada 427) ──
+// Alguém pode deixar o HUB aberto numa aba por horas/dias — nesse tempo, uma rodada nova pode
+// ter sido publicada no GitHub Pages sem essa aba saber (o navegador só busca o HTML de novo se
+// a página for recarregada). Verifica de tempos em tempos (e sempre que a aba volta a ficar
+// visível, cobrindo quem deixa em segundo plano) se a rodada publicada é MAIOR que a que está
+// rodando aqui; se for, mostra a faixa verde no topo com botão de recarregar. Não tenta atualizar
+// sozinho (evita perder trabalho não salvo no meio de um formulário) — só avisa.
+var _hubAvisoNovaVersaoMostrado = false;
+function hubVerificarNovaVersao(){
+  if(_hubAvisoNovaVersaoMostrado || !_hubRodadaAtual) return;
+  fetch(location.pathname + '?_v=' + Date.now(), {cache:'no-store'})
+    .then(function(res){ return res.text(); })
+    .then(function(html){
+      var m = html.match(/rodada (\d+)/);
+      if(m && parseInt(m[1],10) > _hubRodadaAtual){
+        _hubAvisoNovaVersaoMostrado = true;
+        var el = document.getElementById('faixa-nova-versao');
+        if(el) el.style.display = 'block';
+      }
+    })
+    .catch(function(){ /* silencioso — não é crítico, tenta de novo no próximo ciclo */ });
+}
+setInterval(hubVerificarNovaVersao, 5 * 60 * 1000); // a cada 5 minutos
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible') hubVerificarNovaVersao();
 });
 // Efeito de digitação no "> ..." da tela de login — mesma lógica (timing e comportamento)
 // já usada na landing page (safezonesmart.com.br), pra manter a identidade visual consistente

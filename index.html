@@ -570,7 +570,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
 .gp-mini-btn{ display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border:1px dashed var(--gray-300); border-radius:6px; background:#fff; cursor:pointer; font-size:10px; font-weight:600; color:var(--gray-600); margin:2px 3px 2px 0; }
 .gp-mini-btn:hover{ border-color:var(--green-dark); color:var(--green-dark); }
 .gp-add-pagina-row{ margin-top:10px; }
-.gp-page{ width:210mm; height:297mm; background:#fff; box-shadow:0 4px 14px rgba(0,0,0,.14); position:relative; flex-shrink:0; overflow:hidden; }
+.gp-page{ width:210mm; height:297mm; background:#fff; box-shadow:0 4px 14px rgba(0,0,0,.14); position:relative; flex-shrink:0; overflow:hidden; zoom:var(--gp-escala, 1); }
 .gp-page-content{ padding:10mm; display:flex; flex-direction:column; height:100%; box-sizing:border-box; position:relative; z-index:2; }
 .gp-page-header{ display:flex; align-items:center; margin-bottom:6mm; padding-bottom:4mm; }
 .gp-logo{ height:52px; width:auto; object-fit:contain; }
@@ -602,7 +602,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
   body *{ visibility:hidden; }
   #gp-print-area, #gp-print-area *{ visibility:visible; -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
   #gp-print-area{ position:absolute; top:0; left:0; width:100%; margin:0; padding:0; }
-  #gp-print-area .gp-page{ box-shadow:none; margin:0; page-break-after:always; }
+  #gp-print-area .gp-page{ box-shadow:none; margin:0; page-break-after:always; zoom:1 !important; }
   #gp-print-area .gp-page:last-child{ page-break-after:auto; }
   .gp-no-print{ display:none !important; }
   .gp-tabela-valores thead th:nth-last-child(2){ border-radius:0 6px 6px 0 !important; }
@@ -794,7 +794,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 429</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 430</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -22333,7 +22333,38 @@ function gpRenderPreview(){
 
   el.scrollTop = scrollAnterior;
   gpAutoresizarTextareas(el);
+  gpAjustarEscalaPagina();
 }
+
+// ── Escala automática da página no editor (rodada 430) ──
+// .gp-page tem largura fixa de 210mm (~794px) — tamanho real de A4, não é flexível. Em telas
+// menores que ~1240px de largura útil (comum em notebook, já descontando o menu lateral do
+// HUB), isso não cabia e gerava uma barra de rolagem horizontal que só revelava uma fatia
+// mínima da borda da página — sem utilidade real. Agora a página encolhe visualmente pra caber
+// (como o zoom automático do Canva/Google Docs), sem nunca precisar de scroll horizontal.
+// Usa "zoom" (não "transform:scale") de propósito — zoom afeta o espaço ocupado no layout de
+// verdade, então a barra de rolagem para de aparecer sozinha; transform só reduziria
+// visualmente, sem liberar espaço nenhum. Só se aplica em #gp-preview (área de edição) —
+// #gp-print-area nunca herda isso, porque a impressão só copia o innerHTML de #gp-preview, não
+// o estilo do próprio elemento pai onde a variável --gp-escala é definida.
+var _gpEscalaAtual = 1;
+function gpAjustarEscalaPagina(){
+  var col = document.getElementById('gp-preview');
+  if(!col) return;
+  var pagina = col.querySelector('.gp-page');
+  if(!pagina){ col.style.removeProperty('--gp-escala'); _gpEscalaAtual = 1; return; }
+  var larguraNatural = pagina.getBoundingClientRect().width / (_gpEscalaAtual || 1);
+  if(!larguraNatural) return;
+  var larguraDisponivel = col.clientWidth - 8; // desconta o padding:4px de cada lado do preview-col
+  var escala = larguraDisponivel < larguraNatural ? Math.max(0.5, larguraDisponivel / larguraNatural) : 1;
+  _gpEscalaAtual = escala;
+  col.style.setProperty('--gp-escala', escala.toFixed(3));
+}
+window.addEventListener('resize', function(){
+  if(document.getElementById('screen-gerador-propostas') && document.getElementById('screen-gerador-propostas').classList.contains('active')){
+    gpAjustarEscalaPagina();
+  }
+});
 
 function gpRenderPaginaFisica(pagina, el){
   var fisicas = gpPaginarServico(pagina);
@@ -22650,7 +22681,7 @@ function gpLinhaItemHtml(pid, eid, it, idx){
   // definidos na tela de Produtos) — exibir Qtd/Valor Unit. aqui seria redundante e editável por engano.
   var colQtd = it.origemComposicao
     ? '<td style="padding:2px 2px;border-bottom:1px solid #F3F4F6"></td>'
-    : '<td style="padding:2px 2px;border-bottom:1px solid #F3F4F6;text-align:center;white-space:nowrap"><input type="number" class="gp-inline-edit" value="'+(it.qtd||0)+'" max="999" style="width:44px;height:20px;line-height:20px;padding:0;font-size:10px;color:#374151;text-align:center;display:block;margin:0 auto" onmousedown="event.stopPropagation()" oninput="gpInlineItem(\''+pid+'\',\''+eid+'\','+idx+',\'qtd\',this.value)"></td>';
+    : '<td style="padding:2px 2px;border-bottom:1px solid #F3F4F6;text-align:center;white-space:nowrap"><input type="number" class="gp-inline-edit" value="'+(it.qtd||0)+'" max="999" style="width:44px;height:20px;line-height:20px;padding:0;font-size:10px;color:#374151;text-align:center;display:block;margin:0 auto" onmousedown="event.stopPropagation()" onfocus="this.select()" oninput="gpInlineItem(\''+pid+'\',\''+eid+'\','+idx+',\'qtd\',this.value)"></td>';
   var colUnit = it.origemComposicao
     ? '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6"></td>'
     : '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6;text-align:right;white-space:nowrap"><span style="font-size:10px;color:#9ca3af;margin-right:2px">R$</span><input type="text" inputmode="decimal" class="gp-inline-edit" data-item-unit data-pid="'+pid+'" data-eid="'+eid+'" data-idx="'+idx+'" value="'+unitFmt+'" style="width:56px;height:20px;line-height:20px;padding:0 2px;font-size:10px;color:#374151;text-align:right;box-sizing:border-box;display:inline-block" onmousedown="event.stopPropagation()" onfocus="gpFocoMoedaLimparSempre(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+unitFmt+'\')" oninput="gpInlineItemMoeda(this,\''+pid+'\',\''+eid+'\','+idx+')"></td>';
@@ -22912,7 +22943,7 @@ function gpRenderModalComposicao(){
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6">'+
       '<span style="flex:1;font-size:12px;color:#374151">'+escHtml(b.nome)+'</span>'+
       '<span style="font-size:10px;color:var(--gray-400);white-space:nowrap">'+modoLbl+'</span>'+
-      '<input type="number" class="gp-inline-edit" value="'+(b.qtd||0)+'" style="width:44px;padding:3px 2px;font-size:11px;text-align:center" oninput="gpModalCompItem('+bIdx+',\'qtd\',this.value)">'+
+      '<input type="number" class="gp-inline-edit" value="'+(b.qtd||0)+'" style="width:44px;padding:3px 2px;font-size:11px;text-align:center" onfocus="this.select()" oninput="gpModalCompItem('+bIdx+',\'qtd\',this.value)">'+
       '<span style="font-size:10px;color:#9ca3af">R$</span>'+
       '<input type="text" inputmode="decimal" class="gp-inline-edit" value="'+unitFmt+'" style="width:64px;padding:3px 4px;font-size:11px;text-align:right" onfocus="gpFocoMoedaLimparSempre(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+unitFmt+'\')" oninput="gpModalCompItemMoeda(this,'+bIdx+')">'+
       '<span style="font-size:11px;font-weight:700;color:#374151;width:76px;text-align:right" data-modal-comp-total data-bidx="'+bIdx+'">R$ '+fmtValor((b.qtd||0)*(b.unit||0))+'</span>'+
@@ -22962,7 +22993,7 @@ function gpRenderModalItensGrupo(){
     var unitFmt = Number(it.unit||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
     return '<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #F3F4F6">'+
       '<input type="text" class="gp-inline-edit" value="'+escHtml(it.nome||'')+'" placeholder="Descrição do item" style="flex:1;padding:4px 6px;font-size:11px;color:#374151;box-sizing:border-box" oninput="gpModalGrupoItem('+idx+',\'nome\',this.value)">'+
-      '<input type="number" class="gp-inline-edit" value="'+(it.qtd||0)+'" style="width:48px;padding:4px 4px;font-size:11px;text-align:center" oninput="gpModalGrupoItem('+idx+',\'qtd\',this.value)">'+
+      '<input type="number" class="gp-inline-edit" value="'+(it.qtd||0)+'" style="width:48px;padding:4px 4px;font-size:11px;text-align:center" onfocus="this.select()" oninput="gpModalGrupoItem('+idx+',\'qtd\',this.value)">'+
       '<span style="font-size:10px;color:#9ca3af">R$</span>'+
       '<input type="text" inputmode="decimal" class="gp-inline-edit" value="'+unitFmt+'" style="width:64px;padding:4px 4px;font-size:11px;text-align:right" onfocus="gpFocoMoedaLimparSempre(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+unitFmt+'\')" oninput="gpModalGrupoItemMoeda(this,'+idx+')">'+
       '<span style="width:70px;text-align:right;font-size:11px;font-weight:700;color:#374151" data-modal-item-total data-idx="'+idx+'">R$ '+fmtValor((it.qtd||0)*(it.unit||0))+'</span>'+

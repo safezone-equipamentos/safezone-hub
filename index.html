@@ -794,7 +794,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 428</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 429</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -15212,6 +15212,37 @@ function promptFollowupPosContato(){
   div2.appendChild(btnNao);
   prompt.appendChild(div1);
   prompt.appendChild(div2);
+
+  // Data livre — cobre o caso de o cliente pedir um dia específico ("me retorne dia 25"), que
+  // os botões de dias fixos acima não conseguem cobrir (rodada 429).
+  var div3 = document.createElement('div');
+  div3.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed #C0DD97';
+  var labelLivre = document.createElement('span');
+  labelLivre.style.cssText = 'font-size:10px;color:var(--gray-500);white-space:nowrap';
+  labelLivre.textContent = 'ou escolha outra data:';
+  var inputLivre = document.createElement('input');
+  inputLivre.type = 'date';
+  inputLivre.className = 'form-input';
+  inputLivre.style.cssText = 'font-size:11px;padding:3px 6px;height:26px;flex:1;min-width:0';
+  inputLivre.min = calcStr(0);
+  var btnLivre = document.createElement('button');
+  btnLivre.className = 'btn btn-sm btn-secondary';
+  btnLivre.style.cssText = 'font-size:10px;padding:4px 10px;flex-shrink:0';
+  btnLivre.textContent = 'Definir';
+  btnLivre.onclick = function(){
+    if(!inputLivre.value){ toastCampo('Escolha uma data primeiro.', ''); inputLivre.focus(); return; }
+    var fu = document.getElementById('lead-det-followup');
+    if(fu) fu.value = inputLivre.value;
+    var p = document.getElementById(promptId); if(p) p.remove();
+    var retornarEmWrapBtn = fu ? fu.closest('div[style*="border-top"]') : null;
+    if(retornarEmWrapBtn) retornarEmWrapBtn.style.display = '';
+    var d = new Date(inputLivre.value+'T12:00:00');
+    toast('Follow-up: '+d.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'}),'success');
+  };
+  div3.appendChild(labelLivre);
+  div3.appendChild(inputLivre);
+  div3.appendChild(btnLivre);
+  prompt.appendChild(div3);
   // Inserir após o bloco de contato (antes do campo Retornar em) e ocultar o campo enquanto a sugestão estiver ativa
   var fuWrap = document.getElementById('lead-det-followup');
   if(fuWrap && fuWrap.parentNode && fuWrap.parentNode.parentNode){
@@ -18598,6 +18629,29 @@ function dataFollowupComAjusteStr(diasBase, ehRecomendado){
 // ── Lógica central de follow-up: define opções e temperatura conforme o número
 // sequencial do follow-up pós-envio (1º mantém quente, 2º esfria pra morno, 3º pra frio,
 // 4º em diante = última tentativa, sempre +1d). Antes do envio da proposta, só "Hoje".
+// Grava o follow-up escolhido (por um botão pré-definido OU pela data livre) — extraída na
+// rodada 429 pra ser reaproveitada nos dois casos, sem duplicar a lógica de salvar no Firestore,
+// registrar o evento e ajustar a temperatura do lead.
+function _orcConfirmarFollowup(fuStr, numero, temp, wrap){
+  var updates = { proximoFollowup: fuStr };
+  if(numero) updates.followupCount = numero;
+  db.collection('orcamentos').doc(_orcAtual.id).update(updates).catch(function(e){ console.error('[erro silencioso #93]', e); });
+  _orcAtual.proximoFollowup = fuStr;
+  if(numero) _orcAtual.followupCount = numero;
+  var dEvt = new Date(fuStr+'T12:00:00');
+  var labelEvt = numero ? ('Follow-up '+numero+(numero>=4?' (\u00faltima tentativa)':'')+' agendado para '+dEvt.toLocaleDateString('pt-BR')) : ('Follow-up agendado para '+dEvt.toLocaleDateString('pt-BR'));
+  gravarEventoOrc(_orcAtual.id, 'followup_agendado', labelEvt);
+  if(temp && _orcAtual.leadId){
+    db.collection('leads').doc(_orcAtual.leadId).update({ temperatura: temp, _tempManual: true }).catch(function(e){ console.error('[erro silencioso #94]', e); });
+    var lIdx = todasLeadsGlobal.findIndex(function(l){ return l.id===_orcAtual.leadId; });
+    if(lIdx>=0){ todasLeadsGlobal[lIdx].temperatura=temp; todasLeadsGlobal[lIdx]._tempManual=true; }
+    gravarEventoLead(_orcAtual.leadId, 'temperatura', 'Temperatura mudou para '+(temp==='morno'?'\ud83c\udf21 Morno':'\u2744\ufe0f Frio')+' (follow-up - etapa '+numero+')');
+  }
+  var msg = 'Follow-up: '+dEvt.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'})+(temp?' \u00b7 Lead '+(temp==='morno'?'\ud83c\udf21 Morno':'\u2744\ufe0f Frio'):'');
+  toast(msg,'success');
+  wrap.remove();
+}
+
 function calcularOpcoesFollowup(orc, forcarEnviada){
   var propostaEnviada = forcarEnviada || (orc.status||'') === 'proposta_enviada';
   if(!propostaEnviada){
@@ -18650,27 +18704,37 @@ function mostrarPromptFollowupFlutuante(forcarEnviada){
       : 'background:var(--gray-50);color:var(--gray-700);border:1px solid var(--gray-200);border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;text-align:left';
     btn.textContent = op.label+' \u2014 '+calcFmt(op.dias, op.rec);
     btn.onclick = function(){
-      var fuStr = calcStr(op.dias, op.rec);
-      var updates = { proximoFollowup: fuStr };
-      if(op.numero) updates.followupCount = op.numero;
-      db.collection('orcamentos').doc(_orcAtual.id).update(updates).catch(function(e){ console.error('[erro silencioso #93]', e); });
-      _orcAtual.proximoFollowup = fuStr;
-      if(op.numero) _orcAtual.followupCount = op.numero;
-      var dEvt = new Date(fuStr+'T12:00:00');
-      var labelEvt = op.numero ? ('Follow-up '+op.numero+(op.numero>=4?' (\u00faltima tentativa)':'')+' agendado para '+dEvt.toLocaleDateString('pt-BR')) : ('Follow-up agendado para '+dEvt.toLocaleDateString('pt-BR'));
-      gravarEventoOrc(_orcAtual.id, 'followup_agendado', labelEvt);
-      if(op.temp && _orcAtual.leadId){
-        db.collection('leads').doc(_orcAtual.leadId).update({ temperatura: op.temp, _tempManual: true }).catch(function(e){ console.error('[erro silencioso #94]', e); });
-        var lIdx = todasLeadsGlobal.findIndex(function(l){ return l.id===_orcAtual.leadId; });
-        if(lIdx>=0){ todasLeadsGlobal[lIdx].temperatura=op.temp; todasLeadsGlobal[lIdx]._tempManual=true; }
-        gravarEventoLead(_orcAtual.leadId, 'temperatura', 'Temperatura mudou para '+(op.temp==='morno'?'\ud83c\udf21 Morno':'\u2744\ufe0f Frio')+' (follow-up - etapa '+op.numero+')');
-      }
-      var msg = 'Follow-up: '+dEvt.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'})+(op.temp?' \u00b7 Lead '+( op.temp==='morno'?'\ud83c\udf21 Morno':'\u2744\ufe0f Frio'):'');
-      toast(msg,'success');
-      wrap.remove();
+      _orcConfirmarFollowup(calcStr(op.dias, op.rec), op.numero, op.temp, wrap);
     };
     btnWrap.appendChild(btn);
   });
+
+  // Data livre — cobre o caso de o cliente pedir um dia específico ("me retorne dia 25"), que
+  // as opções pré-definidas acima (inclusive a "última tentativa", que só oferecia +1 dia) não
+  // conseguiam cobrir (rodada 429). Mantém o mesmo número de follow-up (op.numero) da etapa
+  // atual — escolher outra data não é um follow-up "extra", é o mesmo follow-up remarcado.
+  var divLivre = document.createElement('div');
+  divLivre.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed #e9d5ff';
+  var labelLivre = document.createElement('span');
+  labelLivre.style.cssText = 'font-size:10px;color:var(--gray-500);white-space:nowrap';
+  labelLivre.textContent = 'ou outra data:';
+  var inputLivre = document.createElement('input');
+  inputLivre.type = 'date';
+  inputLivre.className = 'form-input';
+  inputLivre.style.cssText = 'font-size:11px;padding:3px 6px;height:26px;flex:1;min-width:0';
+  inputLivre.min = dataFollowupComAjusteStr(0, false);
+  var btnLivre = document.createElement('button');
+  btnLivre.style.cssText = 'background:var(--gray-50);color:var(--gray-700);border:1px solid var(--gray-200);border-radius:8px;padding:6px 12px;font-size:11px;cursor:pointer;flex-shrink:0';
+  btnLivre.textContent = 'Definir';
+  btnLivre.onclick = function(){
+    if(!inputLivre.value){ toast('Escolha uma data primeiro.','error'); return; }
+    var op = cfg.opcoes[0];
+    _orcConfirmarFollowup(inputLivre.value, op.numero, op.temp, wrap);
+  };
+  divLivre.appendChild(labelLivre);
+  divLivre.appendChild(inputLivre);
+  divLivre.appendChild(btnLivre);
+  btnWrap.appendChild(divLivre);
 
   var btnFechar = document.createElement('button');
   btnFechar.style.cssText = 'background:none;border:none;color:var(--gray-400);font-size:11px;cursor:pointer;margin-top:4px;text-align:center;width:100%';

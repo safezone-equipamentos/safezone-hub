@@ -794,7 +794,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 430</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 431</div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -15164,7 +15164,11 @@ function registrarContatoLead(){
 
 function promptFollowupPosContato(){
   if(!_leadAtual) return;
-  if((_leadAtual._statusSelecionado||_leadAtual.status) === 'negociacao' && (_leadAtual.propostaVinculadaId || _leadAtual.osVinculadaId || _leadAtual.orcamentoVinculadoId)) return;
+  // Removida a pausa que existia quando o Lead já estava em "Negociação" com orçamento/proposta
+  // vinculado — a intenção era deixar o sistema de follow-up do Orçamento cuidar disso, mas na
+  // prática deixava o registro de contato do Lead sem NENHUMA forma de agendar retorno, e o
+  // campo "Retornar em" ficava com um valor antigo parado ali, parecendo uma sugestão nova sem
+  // ser. Agora o prompt aparece sempre, independente de ter orçamento vinculado (rodada 431).
   var promptId = 'lead-followup-prompt';
   var existing = document.getElementById(promptId); if(existing) existing.remove();
   var hoje = new Date();

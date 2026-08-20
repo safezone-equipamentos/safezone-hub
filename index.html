@@ -146,6 +146,9 @@ input[type=number].form-input{-moz-appearance:textfield}
 #tour-tooltip button.tour-ant{background:var(--gray-100);color:var(--gray-600)}
 .modal-overlay.open{display:flex}
 .modal-overlay#modal-confirmar-envio{z-index:1100}
+.modal-overlay#modal-perder-proposta{z-index:1100}
+.modal-overlay#modal-fechar-proposta{z-index:1100}
+.modal-overlay#modal-os{z-index:1100}
 .modal-overlay.open{display:flex}
 .modal{background:#fff;border-radius:14px;width:560px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.25)}
 .modal-header{padding:20px 24px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
@@ -794,7 +797,10 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 431</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 434</div>
+        <div style="text-align:center;padding-bottom:8px">
+          <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
+        </div>
       </nav>
       <div id="gestor-content" style="flex:1;min-width:0;overflow-y:auto;height:100%">
         <div class="main-content">
@@ -2843,6 +2849,54 @@ setInterval(hubVerificarNovaVersao, 5 * 60 * 1000); // a cada 5 minutos
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState === 'visible') hubVerificarNovaVersao();
 });
+// ── Diagnóstico do bug "topo travado" (rodada 432) ──
+// Bug intermitente, difícil de reproduzir sob demanda — a correção da rodada 426 (resize
+// limpando o overflow do body sem querer) reduziu a frequência, mas não eliminou por completo,
+// então existe pelo menos um segundo caminho ainda não identificado. Em vez de tentar mais uma
+// correção às cegas, esse botão (no rodapé da sidebar) deixa capturar o estado técnico exato no
+// momento em que o bug acontecer de verdade — antes de dar F5, que apaga toda pista.
+function hubDiagnosticarTopoTravado(){
+  var htmlEl = document.documentElement, bodyEl = document.body;
+  var gc = document.getElementById('gestor-content');
+  var telaAtiva = document.querySelector('.screen.active');
+  var modaisAbertos = Array.prototype.slice.call(document.querySelectorAll('.modal.open')).map(function(m){ return m.id; });
+  var linhas = [
+    'Diagnóstico "topo travado" — ' + new Date().toLocaleString('pt-BR'),
+    'Rodada: 432',
+    'Tela ativa: ' + (telaAtiva ? telaAtiva.id : '(nenhuma)'),
+    'Modais abertos: ' + (modaisAbertos.length ? modaisAbertos.join(', ') : 'nenhum'),
+    'Perfil: ' + perfilAtual,
+    'Janela: ' + window.innerWidth + 'x' + window.innerHeight,
+    '',
+    '--- html ---',
+    'style.overflow (inline): "' + htmlEl.style.overflow + '"',
+    'style.overflowY (inline): "' + htmlEl.style.overflowY + '"',
+    'computed overflow-y: ' + getComputedStyle(htmlEl).overflowY,
+    'scrollHeight/clientHeight: ' + htmlEl.scrollHeight + '/' + htmlEl.clientHeight,
+    'scrollTop: ' + htmlEl.scrollTop,
+    '',
+    '--- body ---',
+    'style.overflow (inline): "' + bodyEl.style.overflow + '"',
+    'style.overflowY (inline): "' + bodyEl.style.overflowY + '"',
+    'computed overflow-y: ' + getComputedStyle(bodyEl).overflowY,
+    'scrollHeight/clientHeight: ' + bodyEl.scrollHeight + '/' + bodyEl.clientHeight,
+    'scrollTop: ' + bodyEl.scrollTop,
+    ''
+  ];
+  if(gc){
+    linhas.push('--- #gestor-content ---');
+    linhas.push('computed overflow-y: ' + getComputedStyle(gc).overflowY);
+    linhas.push('scrollHeight/clientHeight: ' + gc.scrollHeight + '/' + gc.clientHeight);
+    linhas.push('clientWidth/scrollWidth: ' + gc.clientWidth + '/' + gc.scrollWidth);
+    linhas.push('scrollTop: ' + gc.scrollTop);
+    linhas.push('computed height: ' + getComputedStyle(gc).height);
+  } else {
+    linhas.push('#gestor-content não encontrado no DOM.');
+  }
+  var texto = linhas.join('\n');
+  console.log(texto);
+  prompt('Copie o texto abaixo (Ctrl+C) e mande pro Claude — NÃO dê F5 ainda, senão perde o estado:', texto);
+}
 // Efeito de digitação no "> ..." da tela de login — mesma lógica (timing e comportamento)
 // já usada na landing page (safezonesmart.com.br), pra manter a identidade visual consistente
 // entre os dois. Roda direto no carregamento da página, antes mesmo do login.
@@ -18583,29 +18637,55 @@ function renderFollowupContatoRapido(orcId){
     btn.className = op.rec ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
     btn.style.cssText = 'font-size:10px;padding:4px 10px';
     btn.textContent = op.label+' ('+calcFmt(op.dias, op.rec)+')';
-    btn.onclick = function(){ confirmarFollowupContatoRapido(orcId, op); };
+    btn.onclick = function(){ confirmarFollowupContatoRapido(orcId, dataFollowupComAjusteStr(op.dias, op.rec), op.numero, op.temp); };
     btnsWrap.appendChild(btn);
   });
+  // Data livre — mesma lacuna encontrada nos outros dois fluxos de follow-up (Lead e o popup
+  // flutuante do Orçamento): a "última tentativa" só oferecia +1 dia, sem jeito de escolher
+  // outra data quando o cliente pede um dia específico (rodada 433).
+  var divLivre = document.createElement('div');
+  divLivre.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed #fde68a;width:100%';
+  var labelLivre = document.createElement('span');
+  labelLivre.style.cssText = 'font-size:10px;color:var(--gray-500);white-space:nowrap';
+  labelLivre.textContent = 'ou outra data:';
+  var inputLivre = document.createElement('input');
+  inputLivre.type = 'date';
+  inputLivre.className = 'form-input';
+  inputLivre.style.cssText = 'font-size:11px;padding:3px 6px;height:26px;flex:1;min-width:0';
+  inputLivre.min = dataFollowupComAjusteStr(0, false);
+  var btnLivre = document.createElement('button');
+  btnLivre.className = 'btn btn-sm btn-secondary';
+  btnLivre.style.cssText = 'font-size:10px;padding:4px 10px;flex-shrink:0';
+  btnLivre.textContent = 'Definir';
+  btnLivre.onclick = function(){
+    if(!inputLivre.value){ toast('Escolha uma data primeiro.','error'); return; }
+    var op = cfg.opcoes[0];
+    confirmarFollowupContatoRapido(orcId, inputLivre.value, op.numero, op.temp);
+  };
+  divLivre.appendChild(labelLivre);
+  divLivre.appendChild(inputLivre);
+  divLivre.appendChild(btnLivre);
+  btnsWrap.appendChild(divLivre);
 }
 
-// Confirma a data escolhida: grava proximoFollowup, incrementa o contador, ajusta temperatura, registra no histórico e libera o fechamento
-function confirmarFollowupContatoRapido(orcId, op){
+// Confirma a data escolhida (de um botão pré-definido OU da data livre): grava proximoFollowup,
+// incrementa o contador, ajusta temperatura, registra no histórico e libera o fechamento
+function confirmarFollowupContatoRapido(orcId, fuStr, numero, temp){
   var orc = todasOrcamentosGlobal.find(function(o){ return o.id===orcId; });
   if(!orc) return;
-  var d2 = dataFollowupComAjuste(op.dias, op.rec);
-  var fuStr = d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
   var updates = { proximoFollowup: fuStr };
-  if(op.numero) updates.followupCount = op.numero;
+  if(numero) updates.followupCount = numero;
   db.collection('orcamentos').doc(orcId).update(updates).catch(function(e){ console.error('[erro silencioso #91]', e); });
   orc.proximoFollowup = fuStr;
-  if(op.numero) orc.followupCount = op.numero;
-  if(op.temp && orc.leadId){
-    db.collection('leads').doc(orc.leadId).update({ temperatura: op.temp, _tempManual:true }).catch(function(e){ console.error('[erro silencioso #92]', e); });
+  if(numero) orc.followupCount = numero;
+  var d2 = new Date(fuStr+'T12:00:00');
+  if(temp && orc.leadId){
+    db.collection('leads').doc(orc.leadId).update({ temperatura: temp, _tempManual:true }).catch(function(e){ console.error('[erro silencioso #92]', e); });
     var lIdx = todasLeadsGlobal.findIndex(function(l){ return l.id===orc.leadId; });
-    if(lIdx>=0){ todasLeadsGlobal[lIdx].temperatura=op.temp; todasLeadsGlobal[lIdx]._tempManual=true; }
-    gravarEventoLead(orc.leadId, 'temperatura', 'Temperatura mudou para '+(op.temp==='morno'?'🌡 Morno':'❄️ Frio')+' (follow-up - etapa '+op.numero+')');
+    if(lIdx>=0){ todasLeadsGlobal[lIdx].temperatura=temp; todasLeadsGlobal[lIdx]._tempManual=true; }
+    gravarEventoLead(orc.leadId, 'temperatura', 'Temperatura mudou para '+(temp==='morno'?'🌡 Morno':'❄️ Frio')+' (follow-up - etapa '+numero+')');
   }
-  var label = op.numero ? ('Follow-up '+op.numero+(op.numero>=4?' (última tentativa)':'')+' agendado para '+d2.toLocaleDateString('pt-BR')) : ('Follow-up agendado para '+d2.toLocaleDateString('pt-BR'));
+  var label = numero ? ('Follow-up '+numero+(numero>=4?' (última tentativa)':'')+' agendado para '+d2.toLocaleDateString('pt-BR')) : ('Follow-up agendado para '+d2.toLocaleDateString('pt-BR'));
   gravarEventoOrc(orcId, 'followup_agendado', label);
   toast('Follow-up agendado: '+d2.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'}),'success');
   var wrapEl = document.getElementById('contato-rapido-followup'); if(wrapEl){ wrapEl.style.display='none'; wrapEl.innerHTML=''; }

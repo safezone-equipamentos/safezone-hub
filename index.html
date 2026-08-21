@@ -797,7 +797,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 439</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 440</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -6593,21 +6593,54 @@ function renderTasks(){
   atualizarBotoesAutor();
 }
 
-// Cor de compra (rodada 439) — só faz sentido na lista Compras, pra associar visualmente cada
-// item a um fornecedor (verde/laranja/amarelo, sem regra fixa do que cada cor significa — é o
-// próprio usuário quem decide o critério, o sistema só guarda e agrupa).
+// Cor de compra (rodada 439, ajustado na 440) — só faz sentido na lista Compras, pra associar
+// visualmente cada item a um fornecedor. Sem regra fixa do que cada cor significa — é o próprio
+// usuário quem decide o critério, o sistema só guarda e agrupa.
+// CORRIGIDO (rodada 440): a bolinha cicando cor a cada clique ficava ruim numa lista grande —
+// como o agrupamento move o item pra outra posição a cada clique, virava uma caça ao item até
+// chegar na cor certa. Agora clicar abre um miniatura com as 4 opções lado a lado, escolhe
+// direto em um clique só, sem precisar ciclar nem reencontrar o item.
 function corCompraHex(cor){
   return cor==='verde' ? '#22c55e' : cor==='laranja' ? '#f97316' : cor==='amarelo' ? '#eab308' : '#e5e7eb';
 }
-function cicarCorCompra(id){
+function abrirSeletorCorCompra(ev, id){
+  ev.stopPropagation();
+  fecharSeletorCorCompra();
+  var dotEl = ev.currentTarget;
+  var rect = dotEl.getBoundingClientRect();
+  var pop = document.createElement('div');
+  pop.id = 'seletor-cor-compra-popup';
+  pop.style.cssText = 'position:fixed;top:'+(rect.bottom+4)+'px;left:'+rect.left+'px;background:#fff;border:1px solid var(--gray-200);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:6px;display:flex;gap:6px;z-index:2000';
+  var opcoes = [
+    {cor:null, hex:corCompraHex(null), titulo:'Sem cor'},
+    {cor:'verde', hex:corCompraHex('verde'), titulo:'Verde'},
+    {cor:'laranja', hex:corCompraHex('laranja'), titulo:'Laranja'},
+    {cor:'amarelo', hex:corCompraHex('amarelo'), titulo:'Amarelo'}
+  ];
+  opcoes.forEach(function(op){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.title = op.titulo;
+    b.style.cssText = 'width:24px;height:24px;border-radius:50%;border:1.5px solid rgba(0,0,0,.18);background:'+op.hex+';cursor:pointer;padding:0;flex-shrink:0';
+    b.onclick = function(e){ e.stopPropagation(); definirCorCompra(id, op.cor); fecharSeletorCorCompra(); };
+    pop.appendChild(b);
+  });
+  document.body.appendChild(pop);
+  setTimeout(function(){
+    document.addEventListener('click', fecharSeletorCorCompra, {once:true});
+    window.addEventListener('scroll', fecharSeletorCorCompra, {once:true, capture:true});
+  }, 0);
+}
+function fecharSeletorCorCompra(){
+  var pop = document.getElementById('seletor-cor-compra-popup');
+  if(pop) pop.remove();
+}
+function definirCorCompra(id, cor){
   var t = todasTasksGlobal.find(function(x){ return x.id===id; });
   if(!t) return;
-  var ciclo = [null, 'verde', 'laranja', 'amarelo'];
-  var idxAtual = ciclo.indexOf(t.corCompra||null);
-  var novaCor = ciclo[(idxAtual+1) % ciclo.length];
-  var upd = { corCompra: novaCor || firebase.firestore.FieldValue.delete() };
+  var upd = { corCompra: cor || firebase.firestore.FieldValue.delete() };
   db.collection('tasks').doc(id).update(upd).then(function(){
-    if(novaCor) t.corCompra = novaCor; else delete t.corCompra;
+    if(cor) t.corCompra = cor; else delete t.corCompra;
     renderTasks();
   }).catch(function(e){ toast('Erro: '+e.message,'error'); });
 }
@@ -6639,7 +6672,7 @@ function renderTaskCard(t, hoje){
     ? '<span style="display:inline-block;font-size:10px;font-weight:700;color:#fff;background:var(--red);padding:1px 7px;border-radius:10px">🔥 Urgente</span>'
     : '';
   var corCompraHtml = t.listaId === 'compras'
-    ? '<span style="display:inline-block;width:14px;height:14px;border-radius:50%;flex-shrink:0;align-self:center;cursor:pointer;border:1.5px solid rgba(0,0,0,.15);background:'+corCompraHex(t.corCompra)+';margin-right:2px" onclick="event.stopPropagation();cicarCorCompra(\''+t.id+'\')" title="Cor de compra (clique pra trocar) — agrupa por fornecedor"></span>'
+    ? '<span style="display:inline-block;width:14px;height:14px;border-radius:50%;flex-shrink:0;align-self:center;cursor:pointer;border:1.5px solid rgba(0,0,0,.15);background:'+corCompraHex(t.corCompra)+';margin-right:2px" onclick="abrirSeletorCorCompra(event,\''+t.id+'\')" title="Cor de compra (clique pra escolher) — agrupa por fornecedor"></span>'
     : '';
   return '<div class="'+classes+'" draggable="true" ondragstart="taskDragStart(event,\''+t.id+'\')" ondragend="this.classList.remove(\'dragging\')" onclick="if(event.target.tagName!==\'INPUT\')abrirTaskDetalhe(\''+t.id+'\')">'+
     '<span class="task-card-drag">⣿</span>'+

@@ -797,7 +797,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 437</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 438</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -13549,7 +13549,7 @@ function enviarLevantamento(){
         </div>
       </div>
       <div class="form-group" style="margin-bottom:14px">
-        <label class="form-label">CPF/CNPJ do cliente <span style="color:var(--red)">*</span></label>
+        <label class="form-label"><span id="fechar-orc-cpf-label-texto">CPF/CNPJ</span> do cliente <span style="color:var(--red)">*</span></label>
         <div style="display:flex;gap:4px">
           <input type="text" class="form-input" id="fechar-orc-cpf" placeholder="000.000.000-00 ou CNPJ — necessário para emissão de NF" oninput="mascaraCpfCnpjFecharOrc(this)" maxlength="18" style="height:40px;font-size:13px;flex:1;min-width:0">
           <button type="button" id="fechar-orc-btn-lupa-cnpj" class="btn btn-sm btn-secondary" style="display:none;flex-shrink:0;width:40px;height:40px;padding:0;align-items:center;justify-content:center;box-sizing:border-box" onclick="buscarCnpjFecharOrc()">🔍</button>
@@ -13643,7 +13643,7 @@ function enviarLevantamento(){
         </div>
       </div>
       <div class="form-group" style="margin-bottom:14px">
-        <label class="form-label">CPF/CNPJ do cliente <span style="color:var(--red)">*</span></label>
+        <label class="form-label"><span id="fechar-prop-cpf-label-texto">CPF/CNPJ</span> do cliente <span style="color:var(--red)">*</span></label>
         <div style="display:flex;gap:4px">
           <input type="text" class="form-input" id="fechar-prop-cpf" placeholder="000.000.000-00 ou CNPJ — necessário para emissão de NF" oninput="mascaraCpfCnpjFecharProp(this)" maxlength="18" style="height:40px;font-size:13px;flex:1;min-width:0">
           <button type="button" id="fechar-prop-btn-lupa-cnpj" class="btn btn-sm btn-secondary" style="display:none;flex-shrink:0;width:40px;height:40px;padding:0;align-items:center;justify-content:center;box-sizing:border-box" onclick="buscarCnpjFecharProp()">🔍</button>
@@ -17625,9 +17625,11 @@ function selecionarTipoPessoaFechar(prefixo, tipo){
   var btnJ = document.getElementById('fechar-'+prefixo+'-tipo-juridica');
   var lupa = document.getElementById('fechar-'+prefixo+'-btn-lupa-cnpj');
   var cpfEl = document.getElementById('fechar-'+prefixo+'-cpf');
+  var labelTexto = document.getElementById('fechar-'+prefixo+'-cpf-label-texto');
   if(btnF) btnF.className = 'btn btn-sm' + (tipo==='fisica' ? '' : ' btn-secondary');
   if(btnJ) btnJ.className = 'btn btn-sm' + (tipo==='juridica' ? '' : ' btn-secondary');
   if(lupa) lupa.style.display = tipo==='juridica' ? 'flex' : 'none';
+  if(labelTexto) labelTexto.textContent = tipo==='juridica' ? 'CNPJ' : 'CPF';
   if(cpfEl){
     cpfEl.placeholder = (tipo==='juridica' ? '00.000.000/0000-00' : '000.000.000-00') + ' — necessário para emissão de NF';
     mascaraCpfCnpjPorTipo(cpfEl, tipo);

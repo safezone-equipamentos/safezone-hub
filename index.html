@@ -797,7 +797,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 436</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 437</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -2661,9 +2661,19 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
             <label class="form-label">Telefone</label>
             <input type="text" class="form-input" id="cliente-edit-telefone" oninput="mascaraTelefone(this)">
           </div>
+          <div class="form-group form-full">
+            <label class="form-label">Tipo de pessoa</label>
+            <div style="display:flex;gap:8px">
+              <button type="button" id="cliente-edit-tipo-fisica" class="btn btn-sm" onclick="selecionarTipoPessoaCliente('fisica')" style="flex:1;justify-content:center">Pessoa Física</button>
+              <button type="button" id="cliente-edit-tipo-juridica" class="btn btn-sm btn-secondary" onclick="selecionarTipoPessoaCliente('juridica')" style="flex:1;justify-content:center">Pessoa Jurídica</button>
+            </div>
+          </div>
           <div class="form-group">
-            <label class="form-label">CPF/CNPJ</label>
-            <input type="text" class="form-input" id="cliente-edit-cpf" oninput="mascaraCpfCnpj(this)" maxlength="18">
+            <label class="form-label" id="cliente-edit-cpf-label">CPF</label>
+            <div style="display:flex;gap:4px">
+              <input type="text" class="form-input" id="cliente-edit-cpf" oninput="mascaraCpfCnpjPorTipo(this, _clienteEditTipoPessoa)" maxlength="18" style="min-width:0;flex:1">
+              <button type="button" id="cliente-edit-btn-lupa-cnpj" class="btn btn-sm btn-secondary" style="display:none;flex-shrink:0;font-size:13px;width:36px;height:36px;padding:0;align-items:center;justify-content:center;box-sizing:border-box" onclick="buscarCnpjCliente()">🔍</button>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">CEP</label>
@@ -13531,9 +13541,19 @@ function enviarLevantamento(){
         <label class="form-label">Valor fechado (R$) — opcional</label>
         <input type="text" class="form-input" id="fechar-orc-valor" placeholder="Ex: 2.500,00" style="height:40px;font-size:13px" oninput="fmtPrecoInput(this)">
       </div>
+      <div class="form-group form-full" id="fechar-orc-tipo-pessoa-wrap" style="margin-bottom:8px">
+        <label class="form-label">Tipo de pessoa</label>
+        <div style="display:flex;gap:8px">
+          <button type="button" id="fechar-orc-tipo-fisica" class="btn btn-sm" onclick="selecionarTipoPessoaFecharOrc('fisica')" style="flex:1;justify-content:center">Pessoa Física</button>
+          <button type="button" id="fechar-orc-tipo-juridica" class="btn btn-sm btn-secondary" onclick="selecionarTipoPessoaFecharOrc('juridica')" style="flex:1;justify-content:center">Pessoa Jurídica</button>
+        </div>
+      </div>
       <div class="form-group" style="margin-bottom:14px">
         <label class="form-label">CPF/CNPJ do cliente <span style="color:var(--red)">*</span></label>
-        <input type="text" class="form-input" id="fechar-orc-cpf" placeholder="000.000.000-00 ou CNPJ — necessário para emissão de NF" oninput="mascaraCpfCnpj(this)" maxlength="18" style="height:40px;font-size:13px">
+        <div style="display:flex;gap:4px">
+          <input type="text" class="form-input" id="fechar-orc-cpf" placeholder="000.000.000-00 ou CNPJ — necessário para emissão de NF" oninput="mascaraCpfCnpjFecharOrc(this)" maxlength="18" style="height:40px;font-size:13px;flex:1;min-width:0">
+          <button type="button" id="fechar-orc-btn-lupa-cnpj" class="btn btn-sm btn-secondary" style="display:none;flex-shrink:0;width:40px;height:40px;padding:0;align-items:center;justify-content:center;box-sizing:border-box" onclick="buscarCnpjFecharOrc()">🔍</button>
+        </div>
       </div>
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">🔧 Este fechamento precisa de OS de Instalação? <span style="color:var(--red)">*</span></label>
@@ -13615,9 +13635,19 @@ function enviarLevantamento(){
         <label class="form-label">Valor fechado (R$)</label>
         <input type="text" class="form-input" id="fechar-prop-valor" placeholder="Ex: 2.500,00" style="height:40px;font-size:13px" oninput="fmtPrecoInput(this)">
       </div>
+      <div class="form-group form-full" id="fechar-prop-tipo-pessoa-wrap" style="margin-bottom:8px">
+        <label class="form-label">Tipo de pessoa</label>
+        <div style="display:flex;gap:8px">
+          <button type="button" id="fechar-prop-tipo-fisica" class="btn btn-sm" onclick="selecionarTipoPessoaFecharProp('fisica')" style="flex:1;justify-content:center">Pessoa Física</button>
+          <button type="button" id="fechar-prop-tipo-juridica" class="btn btn-sm btn-secondary" onclick="selecionarTipoPessoaFecharProp('juridica')" style="flex:1;justify-content:center">Pessoa Jurídica</button>
+        </div>
+      </div>
       <div class="form-group" style="margin-bottom:14px">
         <label class="form-label">CPF/CNPJ do cliente <span style="color:var(--red)">*</span></label>
-        <input type="text" class="form-input" id="fechar-prop-cpf" placeholder="000.000.000-00 ou CNPJ — necessário para emissão de NF" oninput="mascaraCpfCnpj(this)" maxlength="18" style="height:40px;font-size:13px">
+        <div style="display:flex;gap:4px">
+          <input type="text" class="form-input" id="fechar-prop-cpf" placeholder="000.000.000-00 ou CNPJ — necessário para emissão de NF" oninput="mascaraCpfCnpjFecharProp(this)" maxlength="18" style="height:40px;font-size:13px;flex:1;min-width:0">
+          <button type="button" id="fechar-prop-btn-lupa-cnpj" class="btn btn-sm btn-secondary" style="display:none;flex-shrink:0;width:40px;height:40px;padding:0;align-items:center;justify-content:center;box-sizing:border-box" onclick="buscarCnpjFecharProp()">🔍</button>
+        </div>
       </div>
       <div style="border-top:1px solid var(--gray-100);padding-top:12px;margin-bottom:14px">
         <div style="font-size:11px;font-weight:700;color:var(--gray-500);margin-bottom:8px">📍 Endereço do cliente (opcional — se preenchido, vai pra ficha do cliente)</div>
@@ -16143,9 +16173,15 @@ function abrirModalFecharProposta(propostaId){
     }
     if(!cliVinc && orc.clienteCpf) cpfEl.value = orc.clienteCpf;
     else if(cliVinc && cliVinc.cpf) cpfEl.value = cliVinc.cpf;
-    // Prioridade máxima: CPF que o próprio cliente digitou no aceite eletrônico (mais confiável
-    // e mais recente que qualquer cadastro prévio de lead/cliente).
-    if(prop.clienteAceitouCpf){ cpfEl.value = prop.clienteAceitouCpf; mascaraCPF(cpfEl); }
+    // Prioridade máxima: CPF/CNPJ que o próprio cliente digitou no aceite eletrônico (mais
+    // confiável e mais recente que qualquer cadastro prévio de lead/cliente).
+    if(prop.clienteAceitouCpf) cpfEl.value = prop.clienteAceitouCpf;
+    // Tipo de pessoa: herda do cadastro do cliente vinculado se já tiver; senão, tenta inferir
+    // pelo tamanho do que já veio preenchido acima; só pergunta de novo se não achou pista
+    // nenhuma (rodada 437).
+    var tipoHerdadoProp = (cliVinc && cliVinc.tipoPessoa) ||
+      (normalizarTelefone(cpfEl.value).length === 14 ? 'juridica' : (normalizarTelefone(cpfEl.value).length === 11 ? 'fisica' : null));
+    aplicarTipoPessoaHerdadoFechar('prop', tipoHerdadoProp);
   }
   // Endereço opcional — se já existe uma Visita de Avaliação que coletou o endereço do cliente,
   // pré-preenche com esses dados em vez de pedir tudo de novo do zero na hora do fechamento.
@@ -16492,10 +16528,14 @@ function abrirModalFecharOrcamento(orcId){
       }
     }
     if(cliVinc && cliVinc.cpf) cpfEl.value = cliVinc.cpf;
-    // Prioridade máxima: CPF que o cliente digitou no aceite eletrônico de alguma proposta
+    // Prioridade máxima: CPF/CNPJ que o cliente digitou no aceite eletrônico de alguma proposta
     // vinculada a este orçamento (mais confiável que qualquer cadastro prévio).
     var propComAceite = orc && orc.propostaIds ? orc.propostaIds.map(function(pid){ return todasPropostasGlobal.find(function(p){ return p.id===pid; }); }).filter(function(p){ return p && p.clienteAceitouCpf; })[0] : null;
-    if(propComAceite){ cpfEl.value = propComAceite.clienteAceitouCpf; mascaraCPF(cpfEl); }
+    if(propComAceite) cpfEl.value = propComAceite.clienteAceitouCpf;
+    // Tipo de pessoa: mesma lógica de herança do Fechar Proposta (rodada 437).
+    var tipoHerdadoOrc = (cliVinc && cliVinc.tipoPessoa) ||
+      (normalizarTelefone(cpfEl.value).length === 14 ? 'juridica' : (normalizarTelefone(cpfEl.value).length === 11 ? 'fisica' : null));
+    aplicarTipoPessoaHerdadoFechar('orc', tipoHerdadoOrc);
   }
   abrirModal('modal-fechar-orcamento');
 }
@@ -17576,6 +17616,65 @@ function abrirDetalheCliente(id){
   abrirModal('modal-cliente-det');
 }
 
+// ── Toggle Física/Jurídica — Fechar Orçamento / Fechar Proposta (rodada 437) ──
+// Compartilhado entre os dois modais (prefixo 'orc' ou 'prop') pra não duplicar a mesma lógica.
+var _fecharTipoPessoa = { orc: 'fisica', prop: 'fisica' };
+function selecionarTipoPessoaFechar(prefixo, tipo){
+  _fecharTipoPessoa[prefixo] = tipo;
+  var btnF = document.getElementById('fechar-'+prefixo+'-tipo-fisica');
+  var btnJ = document.getElementById('fechar-'+prefixo+'-tipo-juridica');
+  var lupa = document.getElementById('fechar-'+prefixo+'-btn-lupa-cnpj');
+  var cpfEl = document.getElementById('fechar-'+prefixo+'-cpf');
+  if(btnF) btnF.className = 'btn btn-sm' + (tipo==='fisica' ? '' : ' btn-secondary');
+  if(btnJ) btnJ.className = 'btn btn-sm' + (tipo==='juridica' ? '' : ' btn-secondary');
+  if(lupa) lupa.style.display = tipo==='juridica' ? 'flex' : 'none';
+  if(cpfEl){
+    cpfEl.placeholder = (tipo==='juridica' ? '00.000.000/0000-00' : '000.000.000-00') + ' — necessário para emissão de NF';
+    mascaraCpfCnpjPorTipo(cpfEl, tipo);
+  }
+}
+function selecionarTipoPessoaFecharOrc(tipo){ selecionarTipoPessoaFechar('orc', tipo); }
+function selecionarTipoPessoaFecharProp(tipo){ selecionarTipoPessoaFechar('prop', tipo); }
+function mascaraCpfCnpjFecharOrc(el){ mascaraCpfCnpjPorTipo(el, _fecharTipoPessoa.orc); }
+function mascaraCpfCnpjFecharProp(el){ mascaraCpfCnpjPorTipo(el, _fecharTipoPessoa.prop); }
+// Decide se mostra o toggle (tipo ambíguo, pergunta) ou esconde e já aplica o tipo herdado
+// (do cadastro do cliente vinculado, ou inferido pelo tamanho de um CPF/CNPJ que já veio de
+// algum lugar confiável — aceite eletrônico do cliente, por exemplo).
+function aplicarTipoPessoaHerdadoFechar(prefixo, tipoHerdado){
+  var wrap = document.getElementById('fechar-'+prefixo+'-tipo-pessoa-wrap');
+  if(tipoHerdado){
+    selecionarTipoPessoaFechar(prefixo, tipoHerdado);
+    if(wrap) wrap.style.display = 'none';
+  } else {
+    selecionarTipoPessoaFechar(prefixo, 'fisica');
+    if(wrap) wrap.style.display = 'block';
+  }
+}
+function buscarCnpjFecharProp(){
+  var cpfEl = document.getElementById('fechar-prop-cpf');
+  var btn = document.getElementById('fechar-prop-btn-lupa-cnpj');
+  if(!cpfEl) return;
+  if(btn){ btn.disabled = true; btn.textContent = '⏳'; }
+  consultarCNPJ(cpfEl.value, function(d){
+    var svEl = document.getElementById('fechar-prop-servico');
+    var cepEl = document.getElementById('fechar-prop-cep'); if(cepEl && d.cep) cepEl.value = formatarCepValor(d.cep);
+    var cidEl = document.getElementById('fechar-prop-cidade'); if(cidEl) cidEl.value = d.municipio || '';
+    var endEl = document.getElementById('fechar-prop-endereco'); if(endEl) endEl.value = formatarEnderecoBrasilAPI(d);
+    var numEl = document.getElementById('fechar-prop-numero'); if(numEl) numEl.value = d.numero || '';
+    toast('Endereço preenchido: '+(d.razao_social||d.nome_fantasia||'CNPJ encontrado'),'success');
+  }, function(){ if(btn){ btn.disabled=false; btn.textContent='🔍'; } });
+}
+function buscarCnpjFecharOrc(){
+  // Este modal não tem campos de endereço (só CPF/CNPJ, valor e instalação) — a lupa aqui serve
+  // pra confirmar que o CNPJ existe e está ativo antes de emitir a NF, não pra preencher nada.
+  var cpfEl = document.getElementById('fechar-orc-cpf');
+  var btn = document.getElementById('fechar-orc-btn-lupa-cnpj');
+  if(!cpfEl) return;
+  if(btn){ btn.disabled = true; btn.textContent = '⏳'; }
+  consultarCNPJ(cpfEl.value, function(d){
+    toast('CNPJ encontrado: '+(d.razao_social||d.nome_fantasia||'')+(d.descricao_situacao_cadastral?' · '+d.descricao_situacao_cadastral:''),'success');
+  }, function(){ if(btn){ btn.disabled=false; btn.textContent='🔍'; } });
+}
 function toggleEdicaoCliente(mostrar){
   var form = document.getElementById('cliente-det-edit-form'); if(!form) return;
   if(mostrar && _clienteAtualDet){
@@ -17586,6 +17685,10 @@ function toggleEdicaoCliente(mostrar){
     document.getElementById('cliente-edit-endereco').value = _clienteAtualDet.endereco||'';
     document.getElementById('cliente-edit-numero').value = _clienteAtualDet.enderecoNumero||'';
     document.getElementById('cliente-edit-cidade').value = _clienteAtualDet.cidade||'';
+    // Tipo de pessoa: usa o que já está salvo; cadastro de antes da rodada 437 não tem esse
+    // campo ainda, então infere pelo tamanho do documento já digitado (14 dígitos = CNPJ).
+    var tipoSalvo = _clienteAtualDet.tipoPessoa || (normalizarTelefone(_clienteAtualDet.cpf||'').length === 14 ? 'juridica' : 'fisica');
+    selecionarTipoPessoaCliente(tipoSalvo);
   }
   form.style.display = mostrar ? 'block' : 'none';
   // Com o formulário já aberto, o botão "Editar dados" do rodapé fica redundante — Cancelar/Salvar,
@@ -17602,6 +17705,7 @@ function salvarEdicaoCliente(){
     nome: nome,
     telefone: document.getElementById('cliente-edit-telefone').value.trim(),
     cpf: document.getElementById('cliente-edit-cpf').value.trim(),
+    tipoPessoa: _clienteEditTipoPessoa,
     cep: document.getElementById('cliente-edit-cep').value.trim(),
     endereco: document.getElementById('cliente-edit-endereco').value.trim(),
     enderecoNumero: document.getElementById('cliente-edit-numero').value.trim(),
@@ -19804,6 +19908,82 @@ function cpfOuCnpjValido(valorComMascara){
   return len === 11 || len === 14;
 }
 function normalizarTelefone(t){ return (t||'').replace(/\D/g,''); }
+// Consulta de CNPJ via BrasilAPI (brasilapi.com.br) — gratuita, sem chave/cadastro, com CORS
+// habilitado de propósito (motivo do projeto existir: permitir consulta direto do navegador em
+// dados públicos que a fonte oficial não libera pra isso). Por não precisar de segredo nenhum,
+// chama direto daqui — diferente de Gemini/Groq/Telegram, não precisa passar pelo proxy do
+// Apps Script. aoSucesso(dados) só roda se achar o CNPJ; aoFinal() sempre roda por último
+// (sucesso ou erro), pra reabilitar o botão que chamou (rodada 437).
+function consultarCNPJ(cnpjOuTexto, aoSucesso, aoFinal){
+  var digits = normalizarTelefone(cnpjOuTexto);
+  if(digits.length !== 14){
+    toast('Digite o CNPJ completo (14 dígitos) antes de buscar.','error');
+    if(aoFinal) aoFinal();
+    return;
+  }
+  fetch('https://brasilapi.com.br/api/cnpj/v1/'+digits, { headers:{'Accept':'application/json'} })
+    .then(function(res){
+      if(res.status === 404) throw new Error('CNPJ não encontrado na base da Receita Federal.');
+      if(!res.ok) throw new Error('Erro ao consultar CNPJ (HTTP '+res.status+'). Tente de novo em instantes.');
+      return res.json();
+    })
+    .then(function(d){
+      if(d.descricao_situacao_cadastral && String(d.descricao_situacao_cadastral).toUpperCase() !== 'ATIVA'){
+        toast('Atenção: situação cadastral "'+d.descricao_situacao_cadastral+'" — confira antes de prosseguir.','error');
+      }
+      aoSucesso(d);
+    })
+    .catch(function(e){ toast(e.message||'Erro ao consultar CNPJ.','error'); })
+    .finally(function(){ if(aoFinal) aoFinal(); });
+}
+// Formata só o endereço (rua + bairro, mesmo campo único usado no cadastro de cliente) a partir
+// da resposta da BrasilAPI.
+function formatarEnderecoBrasilAPI(d){
+  return [d.logradouro, d.bairro].filter(Boolean).join(', ');
+}
+// Formata CEP puro (só dígitos, como a BrasilAPI devolve) no padrão 00000-000.
+function formatarCepValor(cep){
+  return String(cep||'').replace(/\D/g,'').replace(/(\d{5})(\d{3})/,'$1-$2');
+}
+
+// ── Toggle Física/Jurídica — Cadastro de Cliente (rodada 437) ──
+var _clienteEditTipoPessoa = 'fisica';
+function selecionarTipoPessoaCliente(tipo){
+  _clienteEditTipoPessoa = tipo;
+  var btnF = document.getElementById('cliente-edit-tipo-fisica');
+  var btnJ = document.getElementById('cliente-edit-tipo-juridica');
+  var lupa = document.getElementById('cliente-edit-btn-lupa-cnpj');
+  var label = document.getElementById('cliente-edit-cpf-label');
+  var cpfEl = document.getElementById('cliente-edit-cpf');
+  if(btnF) btnF.className = 'btn btn-sm' + (tipo==='fisica' ? '' : ' btn-secondary');
+  if(btnJ) btnJ.className = 'btn btn-sm' + (tipo==='juridica' ? '' : ' btn-secondary');
+  if(label) label.textContent = tipo==='juridica' ? 'CNPJ' : 'CPF';
+  if(lupa) lupa.style.display = tipo==='juridica' ? 'flex' : 'none';
+  if(cpfEl){
+    cpfEl.placeholder = tipo==='juridica' ? '00.000.000/0000-00' : '000.000.000-00';
+    mascaraCpfCnpjPorTipo(cpfEl, tipo);
+  }
+}
+// Máscara "travada" no tipo escolhido (diferente da mascaraCpfCnpj auto-detectada, usada nos
+// campos que não têm o toggle explícito) — evita o campo virar CNPJ sozinho ao digitar mais de
+// 11 dígitos depois de já ter escolhido "Pessoa Física" por engano.
+function mascaraCpfCnpjPorTipo(el, tipo){
+  if(tipo === 'juridica') mascaraCNPJ(el); else mascaraCPF(el);
+}
+function buscarCnpjCliente(){
+  var cpfEl = document.getElementById('cliente-edit-cpf');
+  var btn = document.getElementById('cliente-edit-btn-lupa-cnpj');
+  if(!cpfEl) return;
+  if(btn){ btn.disabled = true; btn.textContent = '⏳'; }
+  consultarCNPJ(cpfEl.value, function(d){
+    var nomeEl = document.getElementById('cliente-edit-nome'); if(nomeEl) nomeEl.value = d.razao_social || d.nome_fantasia || '';
+    var cepEl = document.getElementById('cliente-edit-cep'); if(cepEl && d.cep) cepEl.value = formatarCepValor(d.cep);
+    var cidEl = document.getElementById('cliente-edit-cidade'); if(cidEl) cidEl.value = d.municipio || '';
+    var endEl = document.getElementById('cliente-edit-endereco'); if(endEl) endEl.value = formatarEnderecoBrasilAPI(d);
+    var numEl = document.getElementById('cliente-edit-numero'); if(numEl) numEl.value = d.numero || '';
+    toast('Dados preenchidos a partir do CNPJ.','success');
+  }, function(){ if(btn){ btn.disabled=false; btn.textContent='🔍'; } });
+}
 // Normaliza para comparação: remove o 9º dígito extra de celular (ex: 19991582576 -> 1991582576),
 // evitando falso-negativo quando o mesmo número é digitado com/sem esse dígito.
 function normalizarTelefoneComparacao(t){

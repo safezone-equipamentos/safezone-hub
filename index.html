@@ -797,7 +797,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 434</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 18/08/2026 · rodada 436</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -2662,8 +2662,8 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
             <input type="text" class="form-input" id="cliente-edit-telefone" oninput="mascaraTelefone(this)">
           </div>
           <div class="form-group">
-            <label class="form-label">CPF</label>
-            <input type="text" class="form-input" id="cliente-edit-cpf" oninput="mascaraCPF(this)" maxlength="14">
+            <label class="form-label">CPF/CNPJ</label>
+            <input type="text" class="form-input" id="cliente-edit-cpf" oninput="mascaraCpfCnpj(this)" maxlength="18">
           </div>
           <div class="form-group">
             <label class="form-label">CEP</label>
@@ -13532,8 +13532,8 @@ function enviarLevantamento(){
         <input type="text" class="form-input" id="fechar-orc-valor" placeholder="Ex: 2.500,00" style="height:40px;font-size:13px" oninput="fmtPrecoInput(this)">
       </div>
       <div class="form-group" style="margin-bottom:14px">
-        <label class="form-label">CPF do cliente <span style="color:var(--red)">*</span></label>
-        <input type="text" class="form-input" id="fechar-orc-cpf" placeholder="000.000.000-00 — necessário para emissão de NF" oninput="mascaraCPF(this)" maxlength="14" style="height:40px;font-size:13px">
+        <label class="form-label">CPF/CNPJ do cliente <span style="color:var(--red)">*</span></label>
+        <input type="text" class="form-input" id="fechar-orc-cpf" placeholder="000.000.000-00 ou CNPJ — necessário para emissão de NF" oninput="mascaraCpfCnpj(this)" maxlength="18" style="height:40px;font-size:13px">
       </div>
       <div class="form-group" style="margin-bottom:0">
         <label class="form-label">🔧 Este fechamento precisa de OS de Instalação? <span style="color:var(--red)">*</span></label>
@@ -13616,8 +13616,8 @@ function enviarLevantamento(){
         <input type="text" class="form-input" id="fechar-prop-valor" placeholder="Ex: 2.500,00" style="height:40px;font-size:13px" oninput="fmtPrecoInput(this)">
       </div>
       <div class="form-group" style="margin-bottom:14px">
-        <label class="form-label">CPF do cliente <span style="color:var(--red)">*</span></label>
-        <input type="text" class="form-input" id="fechar-prop-cpf" placeholder="000.000.000-00 — necessário para emissão de NF" oninput="mascaraCPF(this)" maxlength="14" style="height:40px;font-size:13px">
+        <label class="form-label">CPF/CNPJ do cliente <span style="color:var(--red)">*</span></label>
+        <input type="text" class="form-input" id="fechar-prop-cpf" placeholder="000.000.000-00 ou CNPJ — necessário para emissão de NF" oninput="mascaraCpfCnpj(this)" maxlength="18" style="height:40px;font-size:13px">
       </div>
       <div style="border-top:1px solid var(--gray-100);padding-top:12px;margin-bottom:14px">
         <div style="font-size:11px;font-weight:700;color:var(--gray-500);margin-bottom:8px">📍 Endereço do cliente (opcional — se preenchido, vai pra ficha do cliente)</div>
@@ -16326,7 +16326,7 @@ function confirmarFechamentoProposta(){
   var precisaInstalacao = (document.getElementById('fechar-prop-instalacao')||{}).value||'';
   if(!precisaInstalacao){ toastCampo('Selecione se este fechamento precisa de OS de Instalação.', 'fechar-prop-instalacao-grupo'); return; }
   var cpf = (document.getElementById('fechar-prop-cpf')||{}).value||'';
-  if(normalizarTelefone(cpf).length !== 11){ toastCampo('Informe o CPF completo do cliente (11 dígitos) — necessário para emissão de NF.', 'fechar-prop-cpf'); return; }
+  if(!cpfOuCnpjValido(cpf)){ toastCampo('Informe o CPF ou CNPJ completo do cliente — necessário para emissão de NF.', 'fechar-prop-cpf'); return; }
   var valor = parseBRL((document.getElementById('fechar-prop-valor')||{}).value||'0');
   var servicoFechado = prop.tipoServico || orc.servico || '';
   db.collection('propostas').doc(_fecharPropId).update({
@@ -16506,7 +16506,7 @@ function confirmarFechamentoOrcamento(){
   var precisaInstalacao = (document.getElementById('fechar-orc-instalacao')||{}).value||'';
   if(!precisaInstalacao){ toastCampo('Selecione se este fechamento precisa de OS de Instalação.', 'fechar-orc-instalacao-grupo'); return; }
   var cpf = (document.getElementById('fechar-orc-cpf')||{}).value||'';
-  if(normalizarTelefone(cpf).length !== 11){ toastCampo('Informe o CPF completo do cliente (11 dígitos) — necessário para emissão de NF.', 'fechar-orc-cpf'); return; }
+  if(!cpfOuCnpjValido(cpf)){ toastCampo('Informe o CPF ou CNPJ completo do cliente — necessário para emissão de NF.', 'fechar-orc-cpf'); return; }
   var valor = parseBRL((document.getElementById('fechar-orc-valor')||{}).value||'0');
   var updates = { status: 'fechado', fechadoEm: firebase.firestore.FieldValue.serverTimestamp(), clienteCpf: cpf };
   if(valor) updates.valorFechado = valor;
@@ -16716,6 +16716,20 @@ function salvarPreAgendamentoInstalacao(){
       (tecnicoNome ? ' — técnico: '+tecnicoNome : ' — sem técnico definido')+
       (data ? ' — agendada para '+new Date(data+'T12:00:00').toLocaleDateString('pt-BR')+(hora?' às '+hora:' (sem horário)') : ' — sem data definida'));
     gravarEventoOrc(orcId, 'visita_agendada', 'Instalação pré-agendada'+(data?' para '+new Date(data+'T12:00:00').toLocaleDateString('pt-BR'):'')+(hora?' às '+hora:'')+(servicoAlvo?' · '+servicoAlvo:''));
+    // Sincroniza com o Google Calendar já na criação — antes só acontecia numa edição posterior
+    // da OS (salvarOS já tinha essa chamada, esta função nunca teve), fazendo o evento só
+    // aparecer na agenda do Google depois de salvar de novo (rodada 436).
+    if(data && hora){
+      var evInicioPreAg = new Date(data+'T'+hora+':00');
+      var evFimPreAg = new Date(evInicioPreAg.getTime() + 90*60000);
+      googleCalendarSalvarEvento(null, {
+        summary: '[Instalação] '+(orc.cliente||'') + (tecnicoNome?' — '+tecnicoNome:''),
+        description: 'OS SafeZone HUB'+(endereco?(' — '+endereco+(cidade?', '+cidade:'')):''),
+        start: { dateTime: evInicioPreAg.toISOString() }, end: { dateTime: evFimPreAg.toISOString() }
+      }, function(novoId){
+        db.doc('os/'+criado.ref.id).update({ googleEventId: novoId }).catch(function(){});
+      });
+    }
     _preAgOrcId = null; _preAgServico = null; _preAgPropostaId = null;
     // Acompanhamento a partir daqui é feito pela tela de OS
     setTimeout(function(){ irPara('os'); }, 300);
@@ -16773,6 +16787,19 @@ function cancelarPreAgendamento(){
     gravarHistorico(criado.ref.id, 'os_criada', 'OS #'+criado.numero+' (Instalação) criada em aberto — agendamento deixado incompleto ('+
       (tecnicoNome ? 'técnico: '+tecnicoNome : 'sem técnico')+', '+(data ? new Date(data+'T12:00:00').toLocaleDateString('pt-BR')+(hora?' às '+hora:''):'sem data')+')');
     gravarEventoOrc(orcId, 'visita_agendada', 'Instalação criada SEM agendamento completo (endereço/técnico/data deixados em aberto) — resolver o quanto antes');
+    // Mesma sincronização adicionada na rodada 436 — se apesar de "cancelar" o usuário já tinha
+    // preenchido data/hora antes de fechar, o evento também precisa ir pro Google Calendar aqui.
+    if(data && hora){
+      var evInicioCancelPreAg = new Date(data+'T'+hora+':00');
+      var evFimCancelPreAg = new Date(evInicioCancelPreAg.getTime() + 90*60000);
+      googleCalendarSalvarEvento(null, {
+        summary: '[Instalação] '+(orc.cliente||'') + (tecnicoNome?' — '+tecnicoNome:''),
+        description: 'OS SafeZone HUB'+(endereco?(' — '+endereco+(cidade?', '+cidade:'')):''),
+        start: { dateTime: evInicioCancelPreAg.toISOString() }, end: { dateTime: evFimCancelPreAg.toISOString() }
+      }, function(novoId){
+        db.doc('os/'+criado.ref.id).update({ googleEventId: novoId }).catch(function(){});
+      });
+    }
     _preAgOrcId = null; _preAgServico = null; _preAgPropostaId = null;
     setTimeout(function(){ irPara('os'); }, 300);
   }).catch(function(e){ toast('Erro: '+e.message,'error'); });
@@ -19751,6 +19778,30 @@ function mascaraCNPJ(el){
   v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
   v = v.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
   el.value = v;
+}
+// Máscara adaptativa CPF/CNPJ — decide sozinha qual das duas aplicar conforme a quantidade de
+// dígitos já digitada (até 11 = CPF, acima disso = CNPJ). Usada em qualquer campo de documento
+// de cliente, já que muitos clientes são PJ (empresa) e um campo só de CPF barrava esse caso
+// (rodada 435).
+function mascaraCpfCnpj(el){
+  var v = el.value.replace(/\D/g,'');
+  if(v.length <= 11){
+    v = v.replace(/^(\d{3})(\d)/, '$1.$2');
+    v = v.replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3');
+    v = v.replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
+  } else {
+    v = v.slice(0,14);
+    v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+    v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+    v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+    v = v.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+  }
+  el.value = v;
+}
+// Valida CPF (11 dígitos) OU CNPJ (14 dígitos) — usada nos campos que aceitam os dois.
+function cpfOuCnpjValido(valorComMascara){
+  var len = normalizarTelefone(valorComMascara).length;
+  return len === 11 || len === 14;
 }
 function normalizarTelefone(t){ return (t||'').replace(/\D/g,''); }
 // Normaliza para comparação: remove o 9º dígito extra de celular (ex: 19991582576 -> 1991582576),

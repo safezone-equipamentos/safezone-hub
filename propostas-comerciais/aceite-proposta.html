@@ -71,15 +71,6 @@
   .servico-icone{width:26px;height:26px;flex-shrink:0;border-radius:50%;background:#F0FDF4;display:flex;align-items:center;justify-content:center}
   .servico-nome{font-size:10.5px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.2px}
   .servicos-grid .servico-item:last-child{grid-column:1/-1}
-  .dif-titulo-geral{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:16px}
-  .dif-item{margin-bottom:18px}
-  .dif-item:last-child{margin-bottom:0}
-  .dif-titulo-item{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.2px;color:#374151;margin-bottom:6px}
-  .dif-row{display:flex;gap:12px;align-items:center}
-  .dif-row.inv{flex-direction:row-reverse}
-  .dif-img-wrap{flex:0 0 92px;width:92px;height:70px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .dif-img-wrap img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.2);display:block}
-  .dif-texto-item{flex:1;min-width:0;font-size:11.5px;line-height:1.55;color:#4b5563;text-align:justify}
   .nome-extra{display:inline}
   label{display:block;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;margin-top:18px}
   input[type=text]{width:100%;height:48px;border:1px solid #d1d5db;border-radius:8px;padding:0 14px;font-size:16px;font-family:'Montserrat',sans-serif;color:#1f2937}
@@ -179,6 +170,24 @@ function mascaraCPF(el){
   v = v.replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
   el.value = v;
 }
+// Máscara adaptativa CPF/CNPJ — decide sozinha qual das duas aplicar conforme a quantidade de
+// dígitos já digitada (até 11 = CPF, acima disso = CNPJ). Muitos clientes são PJ (empresa) e o
+// campo só de CPF impedia o próprio cliente de aceitar a proposta (rodada 435).
+function mascaraCpfCnpj(el){
+  var v = el.value.replace(/\D/g,'');
+  if(v.length <= 11){
+    v = v.replace(/^(\d{3})(\d)/, '$1.$2');
+    v = v.replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3');
+    v = v.replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
+  } else {
+    v = v.slice(0,14);
+    v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+    v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+    v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+    v = v.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+  }
+  el.value = v;
+}
 
 var SERVICOS_FIXOS = [
   {nome:'Segurança', icone:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>'},
@@ -199,7 +208,7 @@ function footerHtml(){
   var icMail='<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline>';
   var icPin='<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>';
   function item(ic,txt){ return '<div class="gp-footer-item"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#79B913" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'+ic+'</svg><span>'+txt+'</span></div>'; }
-  return '<div class="gp-footer-bar">'+item(icPhone,'(19) 99686-9707')+item(icInsta,'@safezone.equipamentos')+item(icMail,'contato@safezonesmart.com.br')+item(icPin,'Leme/SP')+'</div>';
+  return '<div class="gp-footer-bar">'+item(icPhone,'(19) 99686-9707')+item(icInsta,'@safezone.equipamentos')+item(icMail,'safezone.equipamentos@gmail.com')+item(icPin,'Leme/SP')+'</div>';
 }
 
 // Monta a "casca" de uma página física (marca d'água + gráfico diagonal + logo).
@@ -343,12 +352,12 @@ function conteudoAceiteHtml(d){
     opcoesPagamentoHtml(d)+
     '<label>Nome completo</label>'+
     '<input type="text" id="ac-nome" placeholder="Seu nome completo">'+
-    '<label>CPF</label>'+
-    '<input type="text" id="ac-cpf" placeholder="000.000.000-00" oninput="mascaraCPF(this)">'+
+    '<label>CPF/CNPJ</label>'+
+    '<input type="text" id="ac-cpf" placeholder="000.000.000-00 ou CNPJ" maxlength="18" oninput="mascaraCpfCnpj(this)">'+
     '<div class="check-wrap" id="ac-check-wrap"><input type="checkbox" id="ac-check"><span>Li e concordo com os termos, valores e condições desta proposta comercial da SafeZone Smart.</span></div>'+
     '<div id="ac-erro" class="erro" style="display:none"></div>'+
     '<button id="ac-btn" onclick="confirmarAceite()">✅ Aceitar proposta comercial</button>'+
-    '<div class="rodape-legal">Ao confirmar, seu nome, CPF, forma de pagamento escolhida, data e hora ficam registrados como aceite eletrônico desta proposta, nos termos da legislação brasileira sobre assinatura eletrônica (MP 2.200-2/2001).</div>'+
+    '<div class="rodape-legal">Ao confirmar, seu nome, CPF/CNPJ, forma de pagamento escolhida, data e hora ficam registrados como aceite eletrônico desta proposta, nos termos da legislação brasileira sobre assinatura eletrônica (MP 2.200-2/2001).</div>'+
     footerHtml();
 }
 
@@ -366,20 +375,6 @@ function destacarCampoErro(elId){
   setTimeout(function(){ el.classList.remove('campo-alerta'); }, 1800);
 }
 
-function conteudoDiferenciaisHtml(d){
-  var itens = (d.diferenciais||[]).map(function(it){
-    var inv = it.lado === 'direita';
-    return '<div class="dif-item">'+
-      '<div class="dif-titulo-item">'+escHtml(it.titulo||'')+'</div>'+
-      '<div class="dif-row'+(inv?' inv':'')+'">'+
-        '<div class="dif-img-wrap"><img src="/imagens/diferenciais/'+escHtml(it.arquivo||'')+'" alt="" onerror="this.parentElement.style.display=\'none\'"></div>'+
-        '<div class="dif-texto-item">'+escHtml(it.texto||'').replace(/\n/g,'<br>')+'</div>'+
-      '</div>'+
-    '</div>';
-  }).join('');
-  return '<div class="dif-titulo-geral">Diferenciais da SafeZone Smart</div>'+itens+footerHtml();
-}
-
 function renderProposta(){
   var d = _dadosProposta;
   var el = document.getElementById('paginas');
@@ -387,7 +382,6 @@ function renderProposta(){
   var conteudoAbertura = conteudoAberturaHtml(d);
   if(conteudoAbertura) html += montarPaginaHtml(conteudoAbertura);
   html += montarPaginaHtml(conteudoServicoHtml(d));
-  if(d.diferenciais && d.diferenciais.length) html += montarPaginaHtml(conteudoDiferenciaisHtml(d));
   html += montarPaginaHtml(conteudoAceiteHtml(d));
   el.innerHTML = html;
 }
@@ -404,7 +398,7 @@ function confirmarAceite(){
 
   if(temOpcoesPagamento && !radioSelecionado){ erroEl.textContent = 'Selecione a forma de pagamento.'; erroEl.style.display='block'; destacarCampoErro('ac-pagamento-wrap'); return; }
   if(!nome || nome.split(' ').length < 2){ erroEl.textContent = 'Informe seu nome completo.'; erroEl.style.display='block'; destacarCampoErro('ac-nome'); return; }
-  if(cpfDigits.length !== 11){ erroEl.textContent = 'CPF inválido.'; erroEl.style.display='block'; destacarCampoErro('ac-cpf'); return; }
+  if(cpfDigits.length !== 11 && cpfDigits.length !== 14){ erroEl.textContent = 'CPF/CNPJ inválido.'; erroEl.style.display='block'; destacarCampoErro('ac-cpf'); return; }
   if(!check){ erroEl.textContent = 'Marque que você leu e concorda com os termos.'; erroEl.style.display='block'; destacarCampoErro('ac-check-wrap'); return; }
   erroEl.style.display='none';
 

@@ -170,23 +170,35 @@ function mascaraCPF(el){
   v = v.replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
   el.value = v;
 }
-// Máscara adaptativa CPF/CNPJ — decide sozinha qual das duas aplicar conforme a quantidade de
-// dígitos já digitada (até 11 = CPF, acima disso = CNPJ). Muitos clientes são PJ (empresa) e o
-// campo só de CPF impedia o próprio cliente de aceitar a proposta (rodada 435).
-function mascaraCpfCnpj(el){
+function mascaraCNPJ(el){
   var v = el.value.replace(/\D/g,'');
-  if(v.length <= 11){
-    v = v.replace(/^(\d{3})(\d)/, '$1.$2');
-    v = v.replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3');
-    v = v.replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
-  } else {
-    v = v.slice(0,14);
-    v = v.replace(/^(\d{2})(\d)/, '$1.$2');
-    v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
-    v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
-    v = v.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
-  }
+  if(v.length > 14) v = v.slice(0,14);
+  v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+  v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+  v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+  v = v.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
   el.value = v;
+}
+// Toggle explícito Física/Jurídica (rodada 437) — troca a máscara e a validação por completo,
+// em vez de tentar adivinhar pelo tamanho digitado (mais preciso: se a pessoa disser
+// "Jurídica" mas digitar só 11 dígitos, isso agora é pego como erro, não aceito como CPF).
+var _acTipoPessoa = 'fisica';
+function selecionarTipoPessoaAceite(tipo){
+  _acTipoPessoa = tipo;
+  var btnF = document.getElementById('ac-tipo-fisica');
+  var btnJ = document.getElementById('ac-tipo-juridica');
+  var label = document.getElementById('ac-cpf-label');
+  var cpfEl = document.getElementById('ac-cpf');
+  if(btnF){ btnF.style.background = tipo==='fisica' ? '#79B913' : '#fff'; btnF.style.color = tipo==='fisica' ? '#fff' : '#4b5563'; btnF.style.border = tipo==='fisica' ? 'none' : '1.5px solid #e5e7eb'; }
+  if(btnJ){ btnJ.style.background = tipo==='juridica' ? '#79B913' : '#fff'; btnJ.style.color = tipo==='juridica' ? '#fff' : '#4b5563'; btnJ.style.border = tipo==='juridica' ? 'none' : '1.5px solid #e5e7eb'; }
+  if(label) label.textContent = tipo==='juridica' ? 'CNPJ' : 'CPF';
+  if(cpfEl){
+    cpfEl.placeholder = tipo==='juridica' ? '00.000.000/0000-00' : '000.000.000-00';
+    if(tipo==='juridica') mascaraCNPJ(cpfEl); else mascaraCPF(cpfEl);
+  }
+}
+function mascaraCpfCnpjAceite(el){
+  if(_acTipoPessoa === 'juridica') mascaraCNPJ(el); else mascaraCPF(el);
 }
 
 var SERVICOS_FIXOS = [
@@ -352,8 +364,13 @@ function conteudoAceiteHtml(d){
     opcoesPagamentoHtml(d)+
     '<label>Nome completo</label>'+
     '<input type="text" id="ac-nome" placeholder="Seu nome completo">'+
-    '<label>CPF/CNPJ</label>'+
-    '<input type="text" id="ac-cpf" placeholder="000.000.000-00 ou CNPJ" maxlength="18" oninput="mascaraCpfCnpj(this)">'+
+    '<label>Tipo de documento</label>'+
+    '<div style="display:flex;gap:8px;margin-bottom:4px">'+
+      '<button type="button" id="ac-tipo-fisica" onclick="selecionarTipoPessoaAceite(\'fisica\')" style="flex:1;width:auto;height:44px;margin:0;background:#79B913;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Pessoa Física</button>'+
+      '<button type="button" id="ac-tipo-juridica" onclick="selecionarTipoPessoaAceite(\'juridica\')" style="flex:1;width:auto;height:44px;margin:0;background:#fff;color:#4b5563;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Pessoa Jurídica</button>'+
+    '</div>'+
+    '<label id="ac-cpf-label">CPF</label>'+
+    '<input type="text" id="ac-cpf" placeholder="000.000.000-00" maxlength="18" oninput="mascaraCpfCnpjAceite(this)">'+
     '<div class="check-wrap" id="ac-check-wrap"><input type="checkbox" id="ac-check"><span>Li e concordo com os termos, valores e condições desta proposta comercial da SafeZone Smart.</span></div>'+
     '<div id="ac-erro" class="erro" style="display:none"></div>'+
     '<button id="ac-btn" onclick="confirmarAceite()">✅ Aceitar proposta comercial</button>'+
@@ -398,7 +415,8 @@ function confirmarAceite(){
 
   if(temOpcoesPagamento && !radioSelecionado){ erroEl.textContent = 'Selecione a forma de pagamento.'; erroEl.style.display='block'; destacarCampoErro('ac-pagamento-wrap'); return; }
   if(!nome || nome.split(' ').length < 2){ erroEl.textContent = 'Informe seu nome completo.'; erroEl.style.display='block'; destacarCampoErro('ac-nome'); return; }
-  if(cpfDigits.length !== 11 && cpfDigits.length !== 14){ erroEl.textContent = 'CPF/CNPJ inválido.'; erroEl.style.display='block'; destacarCampoErro('ac-cpf'); return; }
+  var lenEsperado = _acTipoPessoa === 'juridica' ? 14 : 11;
+  if(cpfDigits.length !== lenEsperado){ erroEl.textContent = (_acTipoPessoa==='juridica'?'CNPJ':'CPF')+' inválido — confira os '+lenEsperado+' dígitos.'; erroEl.style.display='block'; destacarCampoErro('ac-cpf'); return; }
   if(!check){ erroEl.textContent = 'Marque que você leu e concorda com os termos.'; erroEl.style.display='block'; destacarCampoErro('ac-check-wrap'); return; }
   erroEl.style.display='none';
 

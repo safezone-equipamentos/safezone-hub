@@ -797,7 +797,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 441</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 442</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -21722,7 +21722,10 @@ function extrairPrimeiroJSON(texto){
 // esforço; a última SEMPRE cai na mensagem amigável — nenhum erro nativo do JSON.parse deve
 // vazar pro usuário sem passar por aqui.
 function iaExtrairJSON(raw, origemLabel){
-  var clean = (raw||'').replace(/```json|```/g,'').trim();
+  // Reforço defensivo (rodada 442): tira qualquer bloco <think>...</think> de raciocínio que
+  // ainda apareça, mesmo com reasoning_effort:'none' configurado no proxy (Code.gs) — proteção
+  // extra caso o parâmetro não cubra 100% dos casos, ou se o modelo usado mudar no futuro.
+  var clean = (raw||'').replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```json|```/g,'').trim();
   try{ return JSON.parse(clean); }
   catch(e1){
     try{ return JSON.parse(gpJsonReparar(clean)); }

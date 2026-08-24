@@ -797,7 +797,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 440</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 441</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -21735,6 +21735,12 @@ function iaExtrairJSON(raw, origemLabel){
           catch(e4){ /* esgotou as tentativas — cai no erro final abaixo */ }
         }
       }
+      // Registra a resposta CRUA no console antes de desistir — sem isso, não tem como saber
+      // por que a interpretação falhou de verdade (a IA recusou o pedido? respondeu em texto
+      // livre? veio um JSON malformado de um jeito que os 4 reparos acima não cobrem?). Achado
+      // na prática: precisou disso pra diagnosticar uma falha persistente na importação de PDF
+      // via Groq (rodada 441).
+      console.error('[iaExtrairJSON] Não foi possível interpretar'+(origemLabel?' ('+origemLabel+')':'')+'. Resposta bruta recebida:', raw);
       throw new Error('Não foi possível interpretar a resposta da IA'+(origemLabel?' ('+origemLabel+')':'')+'. Tente novamente.');
     }
   }

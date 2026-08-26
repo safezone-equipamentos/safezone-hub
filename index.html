@@ -797,7 +797,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 443</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 444</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -19644,7 +19644,7 @@ function waMontarSnapshotProposta(ctx){
     servico: prop.tipoServico||'Serviço',
     marca: prop.marca||'',
     marcaLogo: '',
-    itens: gpAchatarItensAgrupados(prop.itens, ''),
+    itens: gpAchatarItensAgrupados({itens: prop.itens}),
     valorServicos: prop.valorServicos||0,
     totalGeral: prop.totalGeral||0,
     obs: prop.obs||'',
@@ -19676,7 +19676,7 @@ function waMontarSnapshotProposta(ctx){
       var elLogo = (pagina.elementos||[]).find(function(e){ return e.tipo==='logo-fabricante'; });
       if(elTitulo && elTitulo.texto) base.servico = elTitulo.texto;
       if(elTexto && elTexto.texto) base.descricao = elTexto.texto;
-      if(elItens) base.itens = gpAchatarItensAgrupados(elItens.itens, elItens.grupoNome);
+      if(elItens) base.itens = gpAchatarItensAgrupados(elItens);
       if(elServico) base.valorServicos = elServico.valor||0;
       if(elLogo && elLogo.marca) base.marca = elLogo.marca;
       if(elCond){
@@ -23054,17 +23054,92 @@ function gpInlineAdicionarItemCanvas(pid,eid){
 function gpInlineRemoverItemCanvas(pid,eid,idx){ var e=gpElementoObj(pid,eid); if(!e) return; e.itens.splice(idx,1); gpRenderPreview(); }
 
 // ── Grupo (produto agrupado) na tabela de valores — um grupo por tabela ──
-function gpInlineItemAgruparToggle(pid,eid,idx,checked){
-  var e=gpElementoObj(pid,eid); if(!e||!e.itens||!e.itens[idx]) return;
+// ── Múltiplos grupos por tabela de valores (rodada 444) ──
+// Antes: cada item só tinha agrupado:true/false, e o elemento só um grupoNome — por isso só
+// dava pra ter UM grupo por proposta. Agora cada item tem grupoId (ou null) e o elemento tem
+// grupos:[{id,nome}] — permite quantos grupos o usuário precisar.
+//
+// Converte o formato antigo (it.agrupado + e.grupoNome) pro novo — roda toda vez que o
+// elemento é acessado, então proposta criada antes dessa mudança nunca precisa de migração
+// manual: o primeiro item marcado como agrupado vira "Grupo 1" automaticamente.
+function gpMigrarGruposLegado(e){
+  if(!e) return;
+  if(!Array.isArray(e.grupos)) e.grupos = [];
+  var precisaGrupoLegado = (e.itens||[]).some(function(it){ return it.agrupado===true && !it.grupoId; });
+  if(precisaGrupoLegado){
+    var idLegado = 'g_legado';
+    if(!e.grupos.some(function(g){ return g.id===idLegado; })){
+      e.grupos.push({ id: idLegado, nome: e.grupoNome || 'Grupo 1' });
+    }
+    (e.itens||[]).forEach(function(it){
+      if(it.agrupado===true && !it.grupoId) it.grupoId = idLegado;
+    });
+  }
+}
+// Remove definições de grupo que não têm mais nenhum item — evita "grupo fantasma" vazio
+// aparecendo como opção pra escolher depois.
+function gpLimparGruposVazios(e){
+  if(!e || !Array.isArray(e.grupos)) return;
+  e.grupos = e.grupos.filter(function(g){
+    return (e.itens||[]).some(function(it){ return it.grupoId === g.id; });
+  });
+}
+// Popup de escolha de grupo (clique na etiqueta 🏷️) — mesmo padrão já usado pra cor de compra
+// em Tasks: abre ao lado do clique, lista os grupos existentes + opção de criar um novo.
+function abrirSeletorGrupoItem(ev, pid, eid, idx){
+  ev.stopPropagation();
+  fecharSeletorGrupoItem();
+  var e = gpElementoObj(pid, eid); if(!e) return;
+  gpMigrarGruposLegado(e);
+  var dotEl = ev.currentTarget;
+  var rect = dotEl.getBoundingClientRect();
+  var pop = document.createElement('div');
+  pop.id = 'seletor-grupo-item-popup';
+  pop.style.cssText = 'position:fixed;top:'+(rect.bottom+4)+'px;left:'+rect.left+'px;background:#fff;border:1px solid var(--gray-200);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:6px;min-width:170px;max-width:240px;z-index:2000';
+  var linhas = '<div onclick="event.stopPropagation();definirGrupoItem(\''+pid+'\',\''+eid+'\','+idx+',null)" style="padding:6px 10px;font-size:11px;color:#6b7280;cursor:pointer;border-radius:6px" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">— Sem grupo —</div>';
+  e.grupos.forEach(function(g){
+    linhas += '<div onclick="event.stopPropagation();definirGrupoItem(\''+pid+'\',\''+eid+'\','+idx+',\''+g.id+'\')" style="padding:6px 10px;font-size:11px;color:#374151;cursor:pointer;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">🏷️ '+escHtml(g.nome||'Grupo sem nome')+'</div>';
+  });
+  linhas += '<div onclick="event.stopPropagation();criarNovoGrupoEAtribuir(\''+pid+'\',\''+eid+'\','+idx+')" style="padding:6px 10px;font-size:11px;color:var(--green-dark);font-weight:700;cursor:pointer;border-radius:6px;border-top:1px solid #f3f4f6;margin-top:2px" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">+ Novo grupo</div>';
+  pop.innerHTML = linhas;
+  document.body.appendChild(pop);
+  setTimeout(function(){
+    document.addEventListener('click', fecharSeletorGrupoItem, {once:true});
+    window.addEventListener('scroll', fecharSeletorGrupoItem, {once:true, capture:true});
+  }, 0);
+}
+function fecharSeletorGrupoItem(){
+  var pop = document.getElementById('seletor-grupo-item-popup');
+  if(pop) pop.remove();
+}
+function definirGrupoItem(pid, eid, idx, grupoId){
+  var e = gpElementoObj(pid, eid); if(!e||!e.itens||!e.itens[idx]) return;
   if(e.itens[idx].origemComposicao) return; // já é uma composição — não pode virar sub-item de outro grupo
-  e.itens[idx].agrupado = checked;
-  if(checked && !e.grupoNome) e.grupoNome = 'Novo grupo';
+  e.itens[idx].grupoId = grupoId;
+  gpLimparGruposVazios(e);
+  fecharSeletorGrupoItem();
   gpRenderPreview();
 }
-function gpInlineGrupoNome(pid,eid,valor){ var e=gpElementoObj(pid,eid); if(!e) return; e.grupoNome=valor; }
-function gpDesagruparTodos(pid,eid){
+function criarNovoGrupoEAtribuir(pid, eid, idx){
+  var e = gpElementoObj(pid, eid); if(!e) return;
+  var nome = prompt('Nome do novo grupo:', '');
+  fecharSeletorGrupoItem();
+  if(nome===null) return; // cancelou
+  var novoId = 'g_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  e.grupos = e.grupos||[];
+  e.grupos.push({id:novoId, nome: nome.trim()||'Novo grupo'});
+  if(e.itens && e.itens[idx] && !e.itens[idx].origemComposicao) e.itens[idx].grupoId = novoId;
+  gpRenderPreview();
+}
+function gpInlineGrupoNome(pid,eid,grupoId,valor){
+  var e=gpElementoObj(pid,eid); if(!e||!e.grupos) return;
+  var g = e.grupos.find(function(x){ return x.id===grupoId; });
+  if(g) g.nome = valor;
+}
+function gpDesagruparGrupo(pid,eid,grupoId){
   var e=gpElementoObj(pid,eid); if(!e||!e.itens) return;
-  e.itens.forEach(function(it){ it.agrupado=false; });
+  e.itens.forEach(function(it){ if(it.grupoId===grupoId) it.grupoId=null; });
+  gpLimparGruposVazios(e);
   gpRenderPreview();
 }
 function gpLinhaItemHtml(pid, eid, it, idx){
@@ -23074,7 +23149,7 @@ function gpLinhaItemHtml(pid, eid, it, idx){
   var chkAgrupar = it.origemComposicao
     ? '<span class="gp-no-print" title="Esta linha já é uma composição de produtos — não pode ser agrupada dentro de outro grupo" style="font-size:10px;color:var(--gray-300);flex-shrink:0">🔒</span>'+
       (temBreakdown ? '<span class="gp-no-print" onmousedown="event.stopPropagation()" onclick="gpAbrirVerComposicao(\''+pid+'\',\''+eid+'\','+idx+')" style="cursor:pointer;font-size:9px;font-weight:700;color:var(--green-dark);background:#F0FDF4;border-radius:20px;padding:2px 6px;white-space:nowrap;flex-shrink:0">🔍 ver itens ('+it.composicaoBreakdown.length+')</span>' : '')
-    : '<input type="checkbox" class="gp-no-print" title="Agrupar este item" style="width:11px;height:11px;cursor:pointer;flex-shrink:0" onmousedown="event.stopPropagation()" onchange="gpInlineItemAgruparToggle(\''+pid+'\',\''+eid+'\','+idx+',this.checked)">';
+    : '<span class="gp-no-print" title="Agrupar este item" onmousedown="event.stopPropagation()" onclick="abrirSeletorGrupoItem(event,\''+pid+'\',\''+eid+'\','+idx+')" style="cursor:pointer;font-size:12px;flex-shrink:0;opacity:'+(it.grupoId?'1':'.35')+'">🏷️</span>';
   // Itens de Composição já chegam com o valor total calculado (produtos + fórmulas de quantidade
   // definidos na tela de Produtos) — exibir Qtd/Valor Unit. aqui seria redundante e editável por engano.
   var colQtd = it.origemComposicao
@@ -23094,43 +23169,60 @@ function gpLinhaItemHtml(pid, eid, it, idx){
     '<td class="gp-no-print" style="padding:2px 2px;border-bottom:1px solid #F3F4F6;width:18px"><span onmousedown="event.stopPropagation()" onclick="gpInlineRemoverItemCanvas(\''+pid+'\',\''+eid+'\','+idx+')" style="cursor:pointer;color:#d1d5db;font-size:12px">✕</span></td>'+
   '</tr>';
 }
-function gpLinhaGrupoHtml(pid, eid, itens, idxsGrupo){
-  var e = gpElementoObj(pid, eid);
-  var nome = (e && e.grupoNome) || '';
+function gpLinhaGrupoHtml(pid, eid, itens, idxsGrupo, g){
+  var nome = (g && g.nome) || '';
+  var gid = g && g.id;
   var subtotal = idxsGrupo.reduce(function(s,i){ var it=itens[i]; return s+(it.qtd||0)*(it.unit||0); }, 0);
   return '<tr style="background:#FAFBFC">'+
-    '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6"><div style="display:flex;align-items:center;gap:6px"><input type="text" class="gp-inline-edit" value="'+escHtml(nome)+'" placeholder="Nome do grupo (ex: Cabos, Conectores e Acessórios)" style="flex:1;height:20px;line-height:20px;padding:0 4px;font-size:10px;color:#374151;box-sizing:border-box" onmousedown="event.stopPropagation()" oninput="gpInlineGrupoNome(\''+pid+'\',\''+eid+'\',this.value)"><span class="gp-no-print" onmousedown="event.stopPropagation()" onclick="gpAbrirModalItensGrupo(\''+pid+'\',\''+eid+'\')" style="cursor:pointer;font-size:9px;font-weight:700;color:var(--green-dark);background:#F0FDF4;border-radius:20px;padding:2px 6px;white-space:nowrap;flex-shrink:0">🔍 ver itens ('+idxsGrupo.length+')</span></div></td>'+
+    '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6"><div style="display:flex;align-items:center;gap:6px"><input type="text" class="gp-inline-edit" value="'+escHtml(nome)+'" placeholder="Nome do grupo (ex: Cabos, Conectores e Acessórios)" style="flex:1;height:20px;line-height:20px;padding:0 4px;font-size:10px;color:#374151;box-sizing:border-box" onmousedown="event.stopPropagation()" oninput="gpInlineGrupoNome(\''+pid+'\',\''+eid+'\',\''+gid+'\',this.value)"><span class="gp-no-print" onmousedown="event.stopPropagation()" onclick="gpAbrirModalItensGrupo(\''+pid+'\',\''+eid+'\',\''+gid+'\')" style="cursor:pointer;font-size:9px;font-weight:700;color:var(--green-dark);background:#F0FDF4;border-radius:20px;padding:2px 6px;white-space:nowrap;flex-shrink:0">🔍 ver itens ('+idxsGrupo.length+')</span></div></td>'+
     '<td style="padding:2px 2px;border-bottom:1px solid #F3F4F6"></td>'+
     '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6"></td>'+
-    '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6;text-align:right;font-weight:700;font-size:10px;white-space:nowrap" data-grupo-total data-pid="'+pid+'" data-eid="'+eid+'">R$ '+fmtValor(subtotal)+'</td>'+
-    '<td class="gp-no-print" style="padding:2px 2px;border-bottom:1px solid #F3F4F6;width:18px"><span onmousedown="event.stopPropagation()" onclick="gpDesagruparTodos(\''+pid+'\',\''+eid+'\')" title="Desfazer agrupamento" style="cursor:pointer;color:#d1d5db;font-size:12px">✕</span></td>'+
+    '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6;text-align:right;font-weight:700;font-size:10px;white-space:nowrap" data-grupo-total data-pid="'+pid+'" data-eid="'+eid+'" data-grupo-id="'+gid+'">R$ '+fmtValor(subtotal)+'</td>'+
+    '<td class="gp-no-print" style="padding:2px 2px;border-bottom:1px solid #F3F4F6;width:18px"><span onmousedown="event.stopPropagation()" onclick="gpDesagruparGrupo(\''+pid+'\',\''+eid+'\',\''+gid+'\')" title="Desfazer este grupo" style="cursor:pointer;color:#d1d5db;font-size:12px">✕</span></td>'+
   '</tr>';
 }
-// Converte um array de itens de uma tabela-valores (onde alguns podem estar marcados com
-// agrupado:true) para uma lista "achatada" de linhas nome/qtd/unit, pronta pra exportação —
-// usada sempre que os itens saem do editor (proposta pública, WhatsApp, campo itens do doc
-// propostas). Itens não agrupados mantêm sua própria linha; todos os agrupados viram UMA linha
-// só, somando qtd*unit, com o nome do grupo (grupoNome). Sem isso, essas telas mostravam cada
-// item do grupo separado, como se o agrupamento não existisse (só o editor sabia "desagrupar").
-function gpAchatarItensAgrupados(itens, grupoNome){
-  itens = itens || [];
-  var linhas = []; var subtotalGrupo = 0; var temGrupo = false;
+// Converte os itens de uma tabela-valores (onde alguns podem ter grupoId) pra uma lista
+// "achatada" de linhas nome/qtd/unit, pronta pra exportação — usada sempre que os itens saem do
+// editor (proposta pública, WhatsApp, campo itens do doc propostas). Itens sem grupo mantêm sua
+// própria linha; cada grupo vira UMA linha só, somando qtd*unit dos itens dele. Aceita tanto o
+// formato novo (it.grupoId + el.grupos[]) quanto o antigo (it.agrupado + el.grupoNome), sem
+// precisar migrar o dado antes de exportar (rodada 444).
+function gpAchatarItensAgrupados(el){
+  var itens = (el && el.itens) || [];
+  var gruposDef = (el && el.grupos) || [];
+  var temLegado = itens.some(function(it){ return it.agrupado===true && !it.grupoId; });
+  if(temLegado) gruposDef = gruposDef.concat([{id:'g_legado_export', nome: (el&&el.grupoNome)||'Itens agrupados'}]);
+  var linhas = []; var subtotalPorGrupo = {};
   itens.forEach(function(it){
-    if(it.agrupado){ temGrupo = true; subtotalGrupo += (it.qtd||0)*(it.unit||0); return; }
+    var gid = it.grupoId || (it.agrupado===true ? 'g_legado_export' : null);
+    if(gid){ subtotalPorGrupo[gid] = (subtotalPorGrupo[gid]||0) + (it.qtd||0)*(it.unit||0); return; }
     linhas.push({nome: it.nome||it.desc||'', qtd: it.qtd||1, unit: it.unit||0});
   });
-  if(temGrupo) linhas.push({nome: grupoNome||'Itens agrupados', qtd:1, unit: subtotalGrupo});
+  gruposDef.forEach(function(g){
+    if(subtotalPorGrupo[g.id] !== undefined) linhas.push({nome: g.nome||'Itens agrupados', qtd:1, unit: subtotalPorGrupo[g.id]});
+  });
   return linhas;
 }
 function gpTabelaValoresHtml(pid, eid, itens){
   itens = itens||[];
-  var idxsGrupo = [];
+  var e = gpElementoObj(pid, eid);
+  if(e) gpMigrarGruposLegado(e);
+  var idxsPorGrupo = {};
   var linhas = '';
   itens.forEach(function(it, idx){
-    if(it.agrupado){ idxsGrupo.push(idx); return; }
+    if(it.grupoId){
+      idxsPorGrupo[it.grupoId] = idxsPorGrupo[it.grupoId] || [];
+      idxsPorGrupo[it.grupoId].push(idx);
+      return;
+    }
     linhas += gpLinhaItemHtml(pid, eid, it, idx);
   });
-  if(idxsGrupo.length) linhas += gpLinhaGrupoHtml(pid, eid, itens, idxsGrupo);
+  if(e && e.grupos){
+    e.grupos.forEach(function(g){
+      var idxsGrupo = idxsPorGrupo[g.id];
+      if(idxsGrupo && idxsGrupo.length) linhas += gpLinhaGrupoHtml(pid, eid, itens, idxsGrupo, g);
+    });
+  }
   return '<table class="gp-tabela-valores" style="width:100%;border-collapse:collapse;font-size:11px"><colgroup><col><col style="width:52px"><col style="width:80px"><col style="width:76px"><col style="width:18px"></colgroup><thead><tr style="background:#79B913;color:#fff"><th style="padding:5px 4px;text-align:left;border-radius:6px 0 0 6px">Descrição</th><th style="padding:5px 2px">Qtd</th><th style="padding:5px 8px;text-align:right">Valor</th><th style="padding:5px 8px;text-align:right">Total</th><th class="gp-no-print" style="padding:5px 8px;border-radius:0 6px 6px 0"></th></tr></thead><tbody>'+linhas+'</tbody></table>'+
     '<div class="gp-no-print" onmousedown="event.stopPropagation()" onclick="gpInlineAdicionarItemCanvas(\''+pid+'\',\''+eid+'\')" style="margin-top:4px;font-size:10px;color:var(--green-dark);cursor:pointer;font-weight:600">+ Adicionar item</div>';
 }
@@ -23308,9 +23400,13 @@ function gpFotosPersistirPendentes(){
 }
 
 
-var gpModalGrupoPid = null, gpModalGrupoEid = null;
-function gpAbrirModalItensGrupo(pid,eid){
-  gpModalGrupoPid = pid; gpModalGrupoEid = eid;
+var gpModalGrupoPid = null, gpModalGrupoEid = null, gpModalGrupoId = null;
+function gpAbrirModalItensGrupo(pid,eid,grupoId){
+  gpModalGrupoPid = pid; gpModalGrupoEid = eid; gpModalGrupoId = grupoId;
+  var e = gpElementoObj(pid, eid);
+  var g = e && e.grupos && e.grupos.find(function(x){ return x.id===grupoId; });
+  var tituloEl = document.getElementById('gp-modal-grupo-titulo');
+  if(tituloEl) tituloEl.textContent = '📦 Itens do grupo'+(g&&g.nome?' — '+g.nome:'');
   gpRenderModalItensGrupo();
   abrirModal('modal-gp-itens-grupo');
 }
@@ -23387,7 +23483,7 @@ function gpRenderModalItensGrupo(){
   var wrap = document.getElementById('gp-modal-grupo-lista');
   if(!e||!wrap) return;
   var linhas = (e.itens||[]).map(function(it, idx){
-    if(!it.agrupado) return '';
+    if(it.grupoId !== gpModalGrupoId) return '';
     var unitFmt = Number(it.unit||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
     return '<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #F3F4F6">'+
       '<input type="text" class="gp-inline-edit" value="'+escHtml(it.nome||'')+'" placeholder="Descrição do item" style="flex:1;padding:4px 6px;font-size:11px;color:#374151;box-sizing:border-box" oninput="gpModalGrupoItem('+idx+',\'nome\',this.value)">'+
@@ -23410,18 +23506,20 @@ function gpModalGrupoItem(idx,campo,valor){
 function gpModalGrupoItemMoeda(inputEl,idx){ var val=gpMascaraMoedaEl(inputEl); gpModalGrupoItem(idx,'unit',val); }
 function gpModalGrupoRemoverDoGrupo(idx){
   var e=gpElementoObj(gpModalGrupoPid,gpModalGrupoEid); if(!e||!e.itens||!e.itens[idx]) return;
-  e.itens[idx].agrupado=false;
+  e.itens[idx].grupoId = null;
+  gpLimparGruposVazios(e);
   gpRenderModalItensGrupo();
 }
 function gpModalGrupoExcluirItem(idx){
   var e=gpElementoObj(gpModalGrupoPid,gpModalGrupoEid); if(!e||!e.itens) return;
   e.itens.splice(idx,1);
+  gpLimparGruposVazios(e);
   gpRenderModalItensGrupo();
 }
 function gpModalGrupoAdicionarItem(){
   var e=gpElementoObj(gpModalGrupoPid,gpModalGrupoEid); if(!e) return;
   e.itens=e.itens||[];
-  e.itens.push({nome:'',qtd:1,unit:0,agrupado:true});
+  e.itens.push({nome:'',qtd:1,unit:0,grupoId:gpModalGrupoId});
   gpRenderModalItensGrupo();
 }
 function gpRecalcularModalGrupo(){
@@ -23430,9 +23528,9 @@ function gpRecalcularModalGrupo(){
     var idx=node.getAttribute('data-idx'); var it=e.itens&&e.itens[idx]; if(!it) return;
     node.textContent='R$ '+fmtValor((it.qtd||0)*(it.unit||0));
   });
-  var subtotal=(e.itens||[]).reduce(function(s,it){ return it.agrupado ? s+(it.qtd||0)*(it.unit||0) : s; },0);
+  var subtotal=(e.itens||[]).reduce(function(s,it){ return it.grupoId===gpModalGrupoId ? s+(it.qtd||0)*(it.unit||0) : s; },0);
   var totalLbl=document.getElementById('gp-modal-grupo-total'); if(totalLbl) totalLbl.textContent='R$ '+fmtValor(subtotal);
-  document.querySelectorAll('#gp-preview [data-grupo-total][data-pid="'+gpModalGrupoPid+'"][data-eid="'+gpModalGrupoEid+'"]').forEach(function(node){
+  document.querySelectorAll('#gp-preview [data-grupo-total][data-pid="'+gpModalGrupoPid+'"][data-eid="'+gpModalGrupoEid+'"][data-grupo-id="'+gpModalGrupoId+'"]').forEach(function(node){
     node.textContent='R$ '+fmtValor(subtotal);
   });
 }
@@ -23513,7 +23611,7 @@ function gpSalvarDocumento(){
   var promessas = (gpDoc.paginasServico||[]).map(function(pag){
     var itensLimpos = []; var valorServico = 0; var descricao = '';
     (pag.elementos||[]).forEach(function(elx){
-      if(elx.tipo==='tabela-valores') itensLimpos = itensLimpos.concat(gpAchatarItensAgrupados(elx.itens, elx.grupoNome));
+      if(elx.tipo==='tabela-valores') itensLimpos = itensLimpos.concat(gpAchatarItensAgrupados(elx));
       if(elx.tipo==='tabela-servico') valorServico += (elx.valor||0);
       if(elx.tipo==='texto') descricao += (descricao?'\n':'')+gpHtmlParaTexto(elx.conteudo||'');
     });
@@ -24118,7 +24216,7 @@ function gpAbrirDoOrcamento(){
   <div class="modal" style="width:540px">
     <div class="modal-header">
       <div>
-        <span class="modal-title">📦 Itens do grupo</span>
+        <span class="modal-title" id="gp-modal-grupo-titulo">📦 Itens do grupo</span>
         <div style="font-size:10px;color:var(--gray-400)">Estes itens formam o valor do grupo na tabela — some no PDF como uma linha única</div>
       </div>
       <button class="modal-close" onclick="gpFecharModalItensGrupo()">&times;</button>

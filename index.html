@@ -797,7 +797,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 442</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 443</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -22321,7 +22321,13 @@ function gpMascaraMoedaEl(inputEl){
   return val;
 }
 
-function gpFocoMoedaLimparSempre(inputEl){ inputEl.value=''; }
+// ANTES: gpFocoMoedaLimparSempre(inputEl){ inputEl.value=''; } — apagava o campo inteiro só de
+// focar/clicar, mesmo sem digitar nada, fazendo perder a referência do valor atual. Agora
+// seleciona o texto (mesmo padrão já usado em outros campos do sistema, como quantidade) —
+// digitar substitui na hora (o navegador já troca o texto selecionado pelo que for digitado,
+// antes mesmo do oninput rodar, então a máscara de moeda continua funcionando igual); só
+// clicar sem digitar nada não altera mais o valor (rodada 443).
+function gpFocoMoedaSelecionar(inputEl){ inputEl.select(); }
 function gpBlurMoedaRestaurarValor(inputEl, valorFmt){ if(!inputEl.value.trim()) inputEl.value = valorFmt; }
 
 function gpTextoObsPadrao(){
@@ -22444,7 +22450,7 @@ function gpRenderElementoHtml(elx, pid){
     var valorFmt = Number(elx.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
     return '<table style="width:100%;border-collapse:collapse;font-size:11px"><colgroup><col><col style="width:44px"><col style="width:76px"><col style="width:76px"><col style="width:18px"></colgroup><tbody><tr>'+
       '<td colspan="3" style="padding:8px 4px;font-weight:700;color:#1f2937">Serviços Técnicos</td>'+
-      '<td style="padding:6px 8px;text-align:right;white-space:nowrap"><span style="font-size:13px;font-weight:700;color:#1f2937;margin-right:3px">R$</span><input type="text" inputmode="decimal" class="gp-inline-edit" value="'+valorFmt+'" style="width:64px;text-align:right;font-size:13px;font-weight:700;color:#1f2937;padding:0" onmousedown="event.stopPropagation()" onfocus="gpFocoMoedaLimparSempre(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+valorFmt+'\')" oninput="gpInlineServicoMoeda(this,\''+pid+'\',\''+elx.id+'\')"></td>'+
+      '<td style="padding:6px 8px;text-align:right;white-space:nowrap"><span style="font-size:13px;font-weight:700;color:#1f2937;margin-right:3px">R$</span><input type="text" inputmode="decimal" class="gp-inline-edit" value="'+valorFmt+'" style="width:64px;text-align:right;font-size:13px;font-weight:700;color:#1f2937;padding:0" onmousedown="event.stopPropagation()" onfocus="gpFocoMoedaSelecionar(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+valorFmt+'\')" oninput="gpInlineServicoMoeda(this,\''+pid+'\',\''+elx.id+'\')"></td>'+
       '<td></td>'+
     '</tr></tbody></table>';
   }
@@ -22498,7 +22504,7 @@ function gpRenderElementoHtml(elx, pid){
       '<div style="display:flex;justify-content:space-between;align-items:center">'+
         '<span style="font-size:13px;font-weight:700;color:#1f2937">Valor total do investimento</span>'+
         (elx.travado
-          ? '<div style="display:flex;align-items:center"><span style="font-size:15px;font-weight:800;color:#79B913;margin-right:3px">R$</span><input type="text" inputmode="decimal" class="gp-inline-edit" value="'+vFmt+'" style="width:110px;text-align:right;font-size:15px;font-weight:800;color:#79B913;padding:3px 6px;background:#fff" onmousedown="event.stopPropagation()" onfocus="gpFocoMoedaLimparSempre(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+vFmt+'\')" oninput="gpInlineTotalValorMoeda(this,\''+pid+'\',\''+elx.id+'\')"></div>'
+          ? '<div style="display:flex;align-items:center"><span style="font-size:15px;font-weight:800;color:#79B913;margin-right:3px">R$</span><input type="text" inputmode="decimal" class="gp-inline-edit" value="'+vFmt+'" style="width:110px;text-align:right;font-size:15px;font-weight:800;color:#79B913;padding:3px 6px;background:#fff" onmousedown="event.stopPropagation()" onfocus="gpFocoMoedaSelecionar(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+vFmt+'\')" oninput="gpInlineTotalValorMoeda(this,\''+pid+'\',\''+elx.id+'\')"></div>'
           : '<span style="font-size:17px;font-weight:800;color:#79B913" data-total-display data-pid="'+pid+'" data-eid="'+elx.id+'">R$ '+fmtValor(v)+'</span>')+
       '</div>'+
       '<label class="gp-no-print" style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:10px;color:#6b7280"><input type="checkbox" '+(elx.travado?'checked':'')+' onmousedown="event.stopPropagation()" onchange="gpInlineTotalTravado(\''+pid+'\',\''+elx.id+'\',this.checked)"> Travar valor manualmente</label>'+
@@ -23076,7 +23082,7 @@ function gpLinhaItemHtml(pid, eid, it, idx){
     : '<td style="padding:2px 2px;border-bottom:1px solid #F3F4F6;text-align:center;white-space:nowrap"><input type="number" class="gp-inline-edit" value="'+(it.qtd||0)+'" max="999" style="width:44px;height:20px;line-height:20px;padding:0;font-size:10px;color:#374151;text-align:center;display:block;margin:0 auto" onmousedown="event.stopPropagation()" onfocus="this.select()" oninput="gpInlineItem(\''+pid+'\',\''+eid+'\','+idx+',\'qtd\',this.value)"></td>';
   var colUnit = it.origemComposicao
     ? '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6"></td>'
-    : '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6;text-align:right;white-space:nowrap"><span style="font-size:10px;color:#9ca3af;margin-right:2px">R$</span><input type="text" inputmode="decimal" class="gp-inline-edit" data-item-unit data-pid="'+pid+'" data-eid="'+eid+'" data-idx="'+idx+'" value="'+unitFmt+'" style="width:56px;height:20px;line-height:20px;padding:0 2px;font-size:10px;color:#374151;text-align:right;box-sizing:border-box;display:inline-block" onmousedown="event.stopPropagation()" onfocus="gpFocoMoedaLimparSempre(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+unitFmt+'\')" oninput="gpInlineItemMoeda(this,\''+pid+'\',\''+eid+'\','+idx+')"></td>';
+    : '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6;text-align:right;white-space:nowrap"><span style="font-size:10px;color:#9ca3af;margin-right:2px">R$</span><input type="text" inputmode="decimal" class="gp-inline-edit" data-item-unit data-pid="'+pid+'" data-eid="'+eid+'" data-idx="'+idx+'" value="'+unitFmt+'" style="width:56px;height:20px;line-height:20px;padding:0 2px;font-size:10px;color:#374151;text-align:right;box-sizing:border-box;display:inline-block" onmousedown="event.stopPropagation()" onfocus="gpFocoMoedaSelecionar(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+unitFmt+'\')" oninput="gpInlineItemMoeda(this,\''+pid+'\',\''+eid+'\','+idx+')"></td>';
   var idBusca = 'gp-item-busca-'+pid+'-'+eid+'-'+idx;
   return '<tr>'+
     '<td style="padding:2px 4px;border-bottom:1px solid #F3F4F6"><div style="display:flex;align-items:center;gap:4px;position:relative"><input type="text" class="gp-inline-edit" data-item-nome data-pid="'+pid+'" data-eid="'+eid+'" data-idx="'+idx+'" value="'+escHtml(it.nome||'')+'" placeholder="Descrição do item — digite pra buscar no catálogo" autocomplete="off" style="flex:1;min-width:0;height:20px;line-height:20px;padding:0 4px;font-size:10px;color:#374151;box-sizing:border-box" onmousedown="event.stopPropagation()" oninput="gpBuscarItemCatalogo(\''+pid+'\',\''+eid+'\','+idx+',this.value)" onblur="gpFecharBuscaItemAtraso(\''+pid+'\',\''+eid+'\','+idx+')" onfocus="gpBuscarItemCatalogo(\''+pid+'\',\''+eid+'\','+idx+',this.value)">'+chkAgrupar+
@@ -23337,7 +23343,7 @@ function gpRenderModalComposicao(){
       '<span style="font-size:10px;color:var(--gray-400);white-space:nowrap">'+modoLbl+'</span>'+
       '<input type="number" class="gp-inline-edit" value="'+(b.qtd||0)+'" style="width:44px;padding:3px 2px;font-size:11px;text-align:center" onfocus="this.select()" oninput="gpModalCompItem('+bIdx+',\'qtd\',this.value)">'+
       '<span style="font-size:10px;color:#9ca3af">R$</span>'+
-      '<input type="text" inputmode="decimal" class="gp-inline-edit" value="'+unitFmt+'" style="width:64px;padding:3px 4px;font-size:11px;text-align:right" onfocus="gpFocoMoedaLimparSempre(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+unitFmt+'\')" oninput="gpModalCompItemMoeda(this,'+bIdx+')">'+
+      '<input type="text" inputmode="decimal" class="gp-inline-edit" value="'+unitFmt+'" style="width:64px;padding:3px 4px;font-size:11px;text-align:right" onfocus="gpFocoMoedaSelecionar(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+unitFmt+'\')" oninput="gpModalCompItemMoeda(this,'+bIdx+')">'+
       '<span style="font-size:11px;font-weight:700;color:#374151;width:76px;text-align:right" data-modal-comp-total data-bidx="'+bIdx+'">R$ '+fmtValor((b.qtd||0)*(b.unit||0))+'</span>'+
     '</div>';
   }).join('') : '<div style="font-size:12px;color:var(--gray-400);padding:8px 0">Nenhum detalhamento disponível pra esta linha.</div>';
@@ -23387,7 +23393,7 @@ function gpRenderModalItensGrupo(){
       '<input type="text" class="gp-inline-edit" value="'+escHtml(it.nome||'')+'" placeholder="Descrição do item" style="flex:1;padding:4px 6px;font-size:11px;color:#374151;box-sizing:border-box" oninput="gpModalGrupoItem('+idx+',\'nome\',this.value)">'+
       '<input type="number" class="gp-inline-edit" value="'+(it.qtd||0)+'" style="width:48px;padding:4px 4px;font-size:11px;text-align:center" onfocus="this.select()" oninput="gpModalGrupoItem('+idx+',\'qtd\',this.value)">'+
       '<span style="font-size:10px;color:#9ca3af">R$</span>'+
-      '<input type="text" inputmode="decimal" class="gp-inline-edit" value="'+unitFmt+'" style="width:64px;padding:4px 4px;font-size:11px;text-align:right" onfocus="gpFocoMoedaLimparSempre(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+unitFmt+'\')" oninput="gpModalGrupoItemMoeda(this,'+idx+')">'+
+      '<input type="text" inputmode="decimal" class="gp-inline-edit" value="'+unitFmt+'" style="width:64px;padding:4px 4px;font-size:11px;text-align:right" onfocus="gpFocoMoedaSelecionar(this)" onblur="gpBlurMoedaRestaurarValor(this,\''+unitFmt+'\')" oninput="gpModalGrupoItemMoeda(this,'+idx+')">'+
       '<span style="width:70px;text-align:right;font-size:11px;font-weight:700;color:#374151" data-modal-item-total data-idx="'+idx+'">R$ '+fmtValor((it.qtd||0)*(it.unit||0))+'</span>'+
       '<span onclick="gpModalGrupoRemoverDoGrupo('+idx+')" title="Remover do grupo (volta pra lista normal)" style="cursor:pointer;font-size:13px;color:#9ca3af">↩</span>'+
       '<span onclick="gpModalGrupoExcluirItem('+idx+')" title="Excluir item" style="cursor:pointer;font-size:12px;color:#d1d5db">✕</span>'+

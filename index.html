@@ -599,7 +599,10 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
 .gp-inline-texto b, .gp-inline-texto strong{ font-weight:800 !important; }
 .gp-inline-texto ul{ margin:4px 0; padding-left:20px; }
 .gp-inline-texto li{ margin-bottom:2px; }
+.gp-col-setas{ width:16px; }
 @media print{
+  .gp-col-setas{ width:2px !important; }
+
   @page{ size:A4; margin:0; }
   html, body{ margin:0 !important; padding:0 !important; }
   body *{ visibility:hidden; }
@@ -797,7 +800,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 447</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 448</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -23181,7 +23184,7 @@ function gpMoverGrupo(pid, eid, grupoId, direcao){
 // Monta a coluna de setinhas ▲▼ à esquerda — cinza-claro e sem clique quando já é o
 // primeiro/último da lista (não dá pra subir mais, ou descer mais).
 function gpColSetasHtml(onSubir, onDescer, ehPrimeiro, ehUltimo){
-  return '<td style="padding:2px 0;border-bottom:1px solid #F3F4F6;width:16px;text-align:center">'+
+  return '<td class="gp-col-setas" style="padding:2px 0;border-bottom:1px solid #F3F4F6;text-align:center">'+
     '<div class="gp-no-print" style="display:flex;flex-direction:column;line-height:1;gap:1px">'+
       '<span onmousedown="event.stopPropagation()" onclick="'+(ehPrimeiro?'':onSubir)+'" style="cursor:'+(ehPrimeiro?'default':'pointer')+';font-size:8px;color:'+(ehPrimeiro?'#e5e7eb':'#9ca3af')+'">▲</span>'+
       '<span onmousedown="event.stopPropagation()" onclick="'+(ehUltimo?'':onDescer)+'" style="cursor:'+(ehUltimo?'default':'pointer')+';font-size:8px;color:'+(ehUltimo?'#e5e7eb':'#9ca3af')+'">▼</span>'+
@@ -23274,7 +23277,7 @@ function gpTabelaValoresHtml(pid, eid, itens){
       linhas += gpLinhaGrupoHtml(pid, eid, itens, idxsPorGrupo[g.id], g, gpos===0, gpos===gruposRenderizados.length-1);
     });
   }
-  return '<table class="gp-tabela-valores" style="width:100%;border-collapse:collapse;font-size:11px"><colgroup><col style="width:16px"><col><col style="width:52px"><col style="width:80px"><col style="width:76px"><col style="width:18px"></colgroup><thead><tr style="background:#79B913;color:#fff"><th style="padding:5px 0;border-radius:6px 0 0 6px"></th><th style="padding:5px 4px;text-align:left">Descrição</th><th style="padding:5px 2px">Qtd</th><th style="padding:5px 8px;text-align:right">Valor</th><th style="padding:5px 8px;text-align:right">Total</th><th class="gp-no-print" style="padding:5px 8px;border-radius:0 6px 6px 0"></th></tr></thead><tbody>'+linhas+'</tbody></table>'+
+  return '<table class="gp-tabela-valores" style="width:100%;border-collapse:collapse;font-size:11px"><colgroup><col class="gp-col-setas"><col><col style="width:52px"><col style="width:80px"><col style="width:76px"><col style="width:18px"></colgroup><thead><tr style="background:#79B913;color:#fff"><th style="padding:5px 0;border-radius:6px 0 0 6px;background:#79B913"></th><th style="padding:5px 4px;text-align:left">Descrição</th><th style="padding:5px 2px">Qtd</th><th style="padding:5px 8px;text-align:right">Valor</th><th style="padding:5px 8px;text-align:right">Total</th><th class="gp-no-print" style="padding:5px 8px;border-radius:0 6px 6px 0"></th></tr></thead><tbody>'+linhas+'</tbody></table>'+
     '<div class="gp-no-print" onmousedown="event.stopPropagation()" onclick="gpInlineAdicionarItemCanvas(\''+pid+'\',\''+eid+'\')" style="margin-top:4px;font-size:10px;color:var(--green-dark);cursor:pointer;font-weight:600">+ Adicionar item</div>';
 }
 

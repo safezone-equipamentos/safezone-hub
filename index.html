@@ -797,7 +797,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 445</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 447</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -3015,8 +3015,15 @@ function chamarKsToRIA(sys, usr, opcoes){
   var temperature = (opcoes.temperature !== undefined) ? opcoes.temperature : 0.4;
   var maxTokens = opcoes.max_tokens || 800;
   var modeloKey = (opcoes.model === 'pro') ? 'pro' : 'flash';
+  // Limite de 45s (mesmo padrão já usado na importação de PDF, gpErpChamarGemini) — sem isso,
+  // se a cadeia Gemini → retry → Groq demorasse demais ou travasse em algum ponto, a chamada
+  // ficava pendurada pra sempre e a tela nunca saía do "analisando..." (relatado na prática no
+  // alerta de intenção do Lead, rodada 446 — mas a falta de limite afetava TODOS os lugares que
+  // usam essa função: Briefing, Resumo de Tasks, os dois alertas de intenção).
+  var ctrl = new AbortController();
+  var timeoutId = setTimeout(function(){ ctrl.abort(); }, 45000);
   return fetch(AI_PROXY_URL, {
-    method:'POST',
+    method:'POST', signal: ctrl.signal,
     // Content-Type text/plain (não application/json) é proposital: evita que o navegador
     // dispare uma requisição de pre-voo (OPTIONS) antes da de verdade — o Apps Script não
     // trata bem esse tipo de pre-voo por padrão. O corpo continua sendo JSON de verdade; o
@@ -3029,7 +3036,9 @@ function chamarKsToRIA(sys, usr, opcoes){
   }).then(function(data){
     if(data.error) throw new Error(data.error.message || 'Erro no proxy de IA');
     return data; // já vem no formato {choices:[{message:{content:texto}}]}
-  });
+  }).catch(function(e){
+    throw new Error(e.name==='AbortError' ? 'A KsToR-IA demorou demais para responder (45s).' : (e.message||'Erro ao chamar a IA.'));
+  }).finally(function(){ clearTimeout(timeoutId); });
 }
 // Telegram — bot criado via @BotFather. O token NUNCA fica aqui (ver AI_PROXY_URL acima); o
 // chat_id (pra onde as mensagens vão, esse sim é só um identificador, não é segredo) fica salvo
@@ -23172,8 +23181,8 @@ function gpMoverGrupo(pid, eid, grupoId, direcao){
 // Monta a coluna de setinhas ▲▼ à esquerda — cinza-claro e sem clique quando já é o
 // primeiro/último da lista (não dá pra subir mais, ou descer mais).
 function gpColSetasHtml(onSubir, onDescer, ehPrimeiro, ehUltimo){
-  return '<td class="gp-no-print" style="padding:2px 0;border-bottom:1px solid #F3F4F6;width:16px;text-align:center">'+
-    '<div style="display:flex;flex-direction:column;line-height:1;gap:1px">'+
+  return '<td style="padding:2px 0;border-bottom:1px solid #F3F4F6;width:16px;text-align:center">'+
+    '<div class="gp-no-print" style="display:flex;flex-direction:column;line-height:1;gap:1px">'+
       '<span onmousedown="event.stopPropagation()" onclick="'+(ehPrimeiro?'':onSubir)+'" style="cursor:'+(ehPrimeiro?'default':'pointer')+';font-size:8px;color:'+(ehPrimeiro?'#e5e7eb':'#9ca3af')+'">▲</span>'+
       '<span onmousedown="event.stopPropagation()" onclick="'+(ehUltimo?'':onDescer)+'" style="cursor:'+(ehUltimo?'default':'pointer')+';font-size:8px;color:'+(ehUltimo?'#e5e7eb':'#9ca3af')+'">▼</span>'+
     '</div>'+
@@ -23265,7 +23274,7 @@ function gpTabelaValoresHtml(pid, eid, itens){
       linhas += gpLinhaGrupoHtml(pid, eid, itens, idxsPorGrupo[g.id], g, gpos===0, gpos===gruposRenderizados.length-1);
     });
   }
-  return '<table class="gp-tabela-valores" style="width:100%;border-collapse:collapse;font-size:11px"><colgroup><col style="width:16px"><col><col style="width:52px"><col style="width:80px"><col style="width:76px"><col style="width:18px"></colgroup><thead><tr style="background:#79B913;color:#fff"><th class="gp-no-print" style="padding:5px 0;border-radius:6px 0 0 6px"></th><th style="padding:5px 4px;text-align:left">Descrição</th><th style="padding:5px 2px">Qtd</th><th style="padding:5px 8px;text-align:right">Valor</th><th style="padding:5px 8px;text-align:right">Total</th><th class="gp-no-print" style="padding:5px 8px;border-radius:0 6px 6px 0"></th></tr></thead><tbody>'+linhas+'</tbody></table>'+
+  return '<table class="gp-tabela-valores" style="width:100%;border-collapse:collapse;font-size:11px"><colgroup><col style="width:16px"><col><col style="width:52px"><col style="width:80px"><col style="width:76px"><col style="width:18px"></colgroup><thead><tr style="background:#79B913;color:#fff"><th style="padding:5px 0;border-radius:6px 0 0 6px"></th><th style="padding:5px 4px;text-align:left">Descrição</th><th style="padding:5px 2px">Qtd</th><th style="padding:5px 8px;text-align:right">Valor</th><th style="padding:5px 8px;text-align:right">Total</th><th class="gp-no-print" style="padding:5px 8px;border-radius:0 6px 6px 0"></th></tr></thead><tbody>'+linhas+'</tbody></table>'+
     '<div class="gp-no-print" onmousedown="event.stopPropagation()" onclick="gpInlineAdicionarItemCanvas(\''+pid+'\',\''+eid+'\')" style="margin-top:4px;font-size:10px;color:var(--green-dark);cursor:pointer;font-weight:600">+ Adicionar item</div>';
 }
 

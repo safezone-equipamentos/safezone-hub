@@ -800,7 +800,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 19/08/2026 · rodada 448</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 28/08/2026 · rodada 449</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -21595,10 +21595,19 @@ function gpCriarDocumentoAutomatico(orc){
   // só de Cerca Elétrica, que não tem gravador nem canaletas de câmera.
   var apenasCerca = servicoTxt === 'Cerca Elétrica';
   // Antes da Visita de Avaliação, o texto avisa que o valor é estimativo e pede a visita. Depois
-  // da visita já ter acontecido (orcEhEstimativa=false), a proposta é definitiva — o texto não
-  // pode mais dizer "caráter estimativo" nem pedir uma visita técnica que já foi feita.
+  // da visita já ter acontecido, a proposta é definitiva — o texto não pode mais dizer "caráter
+  // estimativo" nem pedir uma visita técnica que já foi feita.
+  // BUG REAL CORRIGIDO: antes, essa escolha usava orcEhEstimativa(orc) — mas essa função só
+  // retorna true quando NÃO há visita E existe proposta vinda do Kit Rápido. Como este documento
+  // é criado na PRIMEIRA VEZ que o orçamento é selecionado no Gerador de Propostas (momento em
+  // que orc.propostaIds ainda está vazio, antes de qualquer proposta — inclusive Kit Rápido —
+  // existir), orcEhEstimativa(orc) dava false (lista de propostas vazia, não porque a visita
+  // aconteceu) e o texto errado ("baseado na visita já realizada") saía mesmo sem visita nenhuma.
+  // A pergunta certa aqui é só "existe Visita de Avaliação registrada?" — direto no campo
+  // orc.visitas, sem depender de quantas propostas já foram criadas.
   var descPadrao;
-  if(orcEhEstimativa(orc)){
+  var temVisitaRealizada = !!(orc.visitas && orc.visitas.length);
+  if(!temVisitaRealizada){
     descPadrao = apenasCerca
       ? 'Esta proposta tem caráter estimativo e foi elaborada para oferecer uma referência de investimento para o projeto. Para um orçamento preciso e adequado à realidade do local, é necessária a realização de uma visita técnica, onde serão avaliados os detalhes da instalação.\n\nQualquer dúvida, estamos à disposição para orientar e agendar a visita técnica sem compromisso.'
       : 'Esta proposta tem caráter estimativo e foi elaborada para oferecer uma referência de investimento para o projeto. Para um orçamento preciso e adequado à realidade do local, é necessária a realização de uma visita técnica, onde serão avaliados os detalhes da instalação.\n\nNão estão inclusos nesta proposta:\n• Infraestrutura de instalação (canaletas, eletrodutos, conduítes e similares)\n• Conexão do DVR/NVR a monitor ou televisor — o acesso às imagens está previsto somente via aplicativo no smartphone\n\nQualquer dúvida, estamos à disposição para orientar e agendar a visita técnica sem compromisso.';

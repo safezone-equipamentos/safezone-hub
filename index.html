@@ -800,7 +800,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 28/08/2026 · rodada 449</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 28/08/2026 · rodada 450</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -15740,8 +15740,24 @@ function atualizarBadgeOrcamentos(){
   if(badge){ badge.textContent = urgentes.length || ''; badge.classList.toggle('show', urgentes.length > 0); }
 }
 
+// Um orçamento "parcial" (ver recomputarStatusOrcamento) usa o MESMO status pra duas situações
+// bem diferentes: (1) uma proposta já fechou e outra(s) ainda estão em aberto — precisa continuar
+// visível, tem gente esperando resposta; (2) TODAS as propostas já têm retorno (fechada ou
+// perdida) — nesse caso não sobra nada pra acompanhar, é um estado final igual "Fechado"/"Perdido",
+// só que misto. O campo o.status sozinho não distingue os dois casos — só olhando as propostas de
+// verdade dá pra saber (pedido do usuário, rodada 449: orçamento com uma fechada + uma perdida
+// continuava aparecendo nos filtros padrão como se ainda tivesse algo pendente).
+function orcParcialResolvido(o){
+  if(o.status !== 'parcial') return false;
+  if(!o.propostaIds || !o.propostaIds.length) return false;
+  var props = o.propostaIds.map(function(pid){ return todasPropostasGlobal.find(function(p){ return p.id===pid; }); }).filter(Boolean);
+  if(!props.length) return false;
+  return props.every(function(p){ return p.status==='fechada' || p.status==='perdida'; });
+}
+
 function orcRequerAtencao(o){
   if(['fechado','perdido'].indexOf(o.status||'') >= 0) return false;
+  if(orcParcialResolvido(o)) return false;
   // Checa as propostas diretamente — o status agregado do orçamento só reflete uma etapa por vez,
   // então um orçamento "parcial" (uma proposta já fechada) não pode esconder outra proposta do
   // mesmo orçamento ainda aguardando confirmação de envio.
@@ -15797,7 +15813,7 @@ function orcFechadoComOSAtiva(o){
 }
 
 function atualizarKPIsOrcamentos(){
-  var ativos = todasOrcamentosGlobal.filter(function(o){ return ['fechado','perdido'].indexOf(o.status||'') < 0; });
+  var ativos = todasOrcamentosGlobal.filter(function(o){ return ['fechado','perdido'].indexOf(o.status||'') < 0 && !orcParcialResolvido(o); });
   var visita = todasOrcamentosGlobal.filter(function(o){ return ['em_avaliacao','visita_agendada'].indexOf(o.status||'') >= 0; });
   var proposta = todasOrcamentosGlobal.filter(function(o){ return ['proposta_enviada','em_negociacao'].indexOf(o.status||'') >= 0; });
   var atencao = todasOrcamentosGlobal.filter(orcRequerAtencao);
@@ -18485,6 +18501,11 @@ function renderOrcamentos(){
       // OS de instalação em andamento (aí precisa continuar visível pra acompanhar).
       if(o.status === 'perdido') return false;
       if(o.status === 'fechado' && !orcFechadoComOSAtiva(o)) return false;
+      // "Parcial" com todas as propostas já resolvidas (fechada+perdida, nada pendente) é um
+      // estado final — mesmo tratamento do "fechado" acima, inclusive a mesma exceção de OS de
+      // instalação ainda ativa (a proposta que fechou pode ter gerado uma OS que ainda precisa
+      // de acompanhamento).
+      if(orcParcialResolvido(o) && !orcFechadoComOSAtiva(o)) return false;
     }
     if(busca){
       var haystack = ((o.cliente||'')+(o.leadNome||'')+(o.numero||'')).toLowerCase();

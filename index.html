@@ -800,7 +800,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 28/08/2026 · rodada 450</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 24/09/2026 · rodada 451</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -2813,7 +2813,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 // Aviso visual — nunca deixa dúvida sobre qual banco está conectado. Roda antes de qualquer
 // outra coisa, então já aparece mesmo antes do login.
-const VERSAO_HUB = '1.0';
+const VERSAO_HUB = '1.0.1';
 // Número da rodada rodando AGORA nesta aba, capturado do próprio texto do rodapé antes dele
 // ser trocado por "v1.0" em produção logo abaixo — é o valor que hubVerificarNovaVersao()
 // compara contra o que está publicado no servidor (rodada 427).
@@ -7928,10 +7928,34 @@ function dashBriefingTextoDetalhado(dados){
     partes.push('\n*🌡 Leads quentes ('+l.leadsQuentes.length+')*');
     l.leadsQuentes.forEach(function(le){ partes.push('• '+(le.nome||'Lead')); });
   }
-  if(!l.followupVencido.length && !l.visitasHoje.length && !l.tasksUrgentes.length && !l.posvendaParado.length && !l.leadsQuentes.length){
+  if(!l.followupVencido.length && !l.visitasHoje.length && !l.osPendentes.length && !l.tasksUrgentes.length && !l.posvendaParado.length && !l.leadsQuentes.length){
     partes.push('\nNada pegando fogo hoje. 🎉');
   }
   return partes.join('\n');
+}
+
+// A indisponibilidade temporária da IA não deve impedir o resumo operacional nem o aviso
+// diário no Telegram: ambos podem ser montados com os dados já carregados no HUB.
+function dashBriefingResumoLocal(dados){
+  var l = dados.listas;
+  var prioridades = [];
+  if(l.followupVencido.length) prioridades.push('Retomar o contato com '+(l.followupVencido[0].cliente||'um cliente com follow-up vencido')+'.');
+  if(l.visitasHoje.length) prioridades.push('Conferir a visita ou OS de '+(l.visitasHoje[0].cliente||'hoje')+'.');
+  if(l.osPendentes.length) prioridades.push('Verificar a OS pendente de '+(l.osPendentes[0].cliente||'um cliente')+'.');
+  if(l.tasksUrgentes.length) prioridades.push('Priorizar a tarefa '+(l.tasksUrgentes[0].titulo||'urgente')+'.');
+  if(l.posvendaParado.length) prioridades.push('Retomar o pós-venda de '+(l.posvendaParado[0].cliente||'um cliente')+'.');
+  if(l.leadsQuentes.length) prioridades.push('Acompanhar o lead '+(l.leadsQuentes[0].nome||'em aberto')+'.');
+  return prioridades.slice(0,3).join(' ') || 'Nenhuma pendência prioritária registrada para hoje.';
+}
+
+function dashBriefingChamarIA(sys, usr){
+  function requisitar(){ return chamarKsToRIA(sys, usr, {temperature:0.5, max_tokens:500}); }
+  return requisitar().catch(function(e){
+    // Uma única nova tentativa, com espera, somente para falhas transitórias. O proxy
+    // pode devolver o erro do Gemini dentro de data.error, já convertido em Error pelo wrapper.
+    if(!/(high demand|overload|temporar|unavailable|resource.exhausted|HTTP\s*(429|503))/i.test(e.message||'')) throw e;
+    return new Promise(function(resolve){ setTimeout(resolve, 2500); }).then(requisitar);
+  });
 }
 
 function dashBriefingGerar(manual){
@@ -7946,19 +7970,48 @@ function dashBriefingGerar(manual){
     'REGRAS DO "resumo":\\n- NUNCA comece com saudação ("Bom dia", "Olá", "E aí"), nem nomeie ninguém.\\n- NUNCA termine com frase de efeito, incentivo ou fechamento motivacional ("vamos nessa", "bora resolver", "ótimo dia de trabalho").\\n- NUNCA reafirme os números que já aparecem nos chips (ex: não escreva "temos 1 follow-up vencido e 1 task urgente" — isso já está visível ao lado). Em vez disso, vá direto ao que interessa: qual cliente, qual situação.\\n- Escreva como quem está avisando algo rápido no meio do trabalho, não como quem está entregando um relatório.\\n- Cite só o que existe nos dados abaixo, nunca invente cliente ou valor.\\n- Se não houver nada relevante, diga isso em poucas palavras (ex: "Nada pegando fogo hoje.").\\nREGRAS de "promissores":\\n- Escolha no máximo 3 orçamentos entre os listados, priorizando valor alto de proposta, temperatura quente do lead, e sinais positivos no texto dos contatos recentes (urgência, decisão próxima, confirmação de orçamento, elogio). Se nada parecer especialmente promissor, retorne lista vazia.\\n- O campo "nome" é sempre o nome do CLIENTE (campo "cliente" nos dados abaixo) — nunca o nome de um sócio da empresa.\\n- Responda APENAS o JSON.';
   var usr = 'Contadores de hoje (já visíveis na tela, não repita esses números no resumo): '+JSON.stringify(dados.contadores)+'\\n\\nOrçamentos ativos (candidatos a "promissores" — o nome do cliente é o texto logo após o "- "):\\n'+(dados.candidatosTexto||'Nenhum orçamento ativo no momento.');
 
-  chamarKsToRIA(sys, usr, {temperature:0.5, max_tokens:500})
+  var falhaIA = null;
+  dashBriefingChamarIA(sys, usr)
   .then(function(data){
     var txt = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
     var out = iaExtrairJSON(txt, 'briefing');
+    if(typeof out.resumo !== 'string' || !Array.isArray(out.promissores)) throw new Error('Resposta incompleta da IA para o briefing.');
+    return out;
+  })
+  .catch(function(e){
+    falhaIA = e;
+    console.warn('[briefing] IA indisponível; usando dados locais:', e);
+    return {resumo:dashBriefingResumoLocal(dados), promissores:[]};
+  })
+  .then(function(out){
+    var hojeStr = dataLocalYMD(new Date());
+    var briefingRef = db.doc('config/dashboard_briefing');
     var payload = {
-      resumo: out.resumo||'', promissores: out.promissores||[],
-      contadores: dados.contadores, dataGeracao: dataLocalYMD(new Date()),
+      resumo: out.resumo||'', promissores: out.promissores||[], geradoComIA: !falhaIA,
+      contadores: dados.contadores, dataGeracao: hojeStr,
       geradoEm: firebase.firestore.FieldValue.serverTimestamp()
     };
-    return db.doc('config/dashboard_briefing').set(payload).then(function(){
-      payload.geradoEm = new Date();
-      dashBriefingRenderizar(payload);
-      if(!manual) notificarTelegram(dashBriefingTextoDetalhado(dados));
+    return briefingRef.get().then(function(snap){
+      var enviadoHoje = snap.exists && snap.data().telegramEnviadoDia === hojeStr;
+      if(enviadoHoje) payload.telegramEnviadoDia = hojeStr;
+      return briefingRef.set(payload).then(function(){
+        payload.geradoEm = new Date();
+        dashBriefingRenderizar(payload);
+        if(enviadoHoje) return; // Atualizar o texto não repete o Telegram do mesmo dia.
+        if(!_tgChatId){
+          if(manual) toast('Briefing atualizado. Configure o Telegram para receber o resumo.', 'info');
+          return;
+        }
+        return notificarTelegram(dashBriefingTextoDetalhado(dados)).then(function(res){
+          if(!res || !res.ok){
+            if(manual) toast('Briefing atualizado, mas o Telegram não confirmou o envio.', 'error');
+            return;
+          }
+          return briefingRef.update({telegramEnviadoDia:hojeStr}).catch(function(e){
+            console.warn('[briefing] Telegram enviado, mas não foi possível registrar o envio:', e);
+          });
+        });
+      });
     });
   })
   .catch(function(e){
@@ -7994,7 +8047,8 @@ function dashBriefingRenderizar(dados){
   var ts = document.getElementById('dash-briefing-ts');
   if(ts){
     var d = dados.geradoEm && dados.geradoEm.toDate ? dados.geradoEm.toDate() : (dados.geradoEm instanceof Date ? dados.geradoEm : new Date());
-    ts.textContent = 'Gerado às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    ts.textContent = 'Gerado às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+
+      (dados.geradoComIA === false ? ' · resumo automático (IA indisponível)' : '');
   }
 }
 

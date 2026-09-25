@@ -800,7 +800,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 24/09/2026 · rodada 451</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 25/09/2026 · rodada 452</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -2813,7 +2813,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 // Aviso visual — nunca deixa dúvida sobre qual banco está conectado. Roda antes de qualquer
 // outra coisa, então já aparece mesmo antes do login.
-const VERSAO_HUB = '1.0.1';
+const VERSAO_HUB = '1.0.2';
 // Número da rodada rodando AGORA nesta aba, capturado do próprio texto do rodapé antes dele
 // ser trocado por "v1.0" em produção logo abaixo — é o valor que hubVerificarNovaVersao()
 // compara contra o que está publicado no servidor (rodada 427).
@@ -21874,9 +21874,10 @@ function gpErpRenderizarPdfEmImagens(pdfBase64){
     for(var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
     return pdfjsLib.getDocument({data:arr}).promise;
   }).then(function(pdf){
-    // Máximo de 5 páginas — mesmo limite que o modelo de visão da Groq aceita por chamada;
-    // orçamento do BomSaldo normalmente tem 1-2.
-    var numPaginas = Math.min(pdf.numPages, 5);
+    // O fallback de visão da Groq aceita até 3 imagens por chamada. Nunca omitir
+    // páginas silenciosamente: isso poderia deixar produtos ou serviços fora do orçamento.
+    if(pdf.numPages > 3) throw new Error('O Gemini não processou o PDF e o leitor alternativo aceita até 3 páginas. Este arquivo tem '+pdf.numPages+' páginas.');
+    var numPaginas = pdf.numPages;
     var promessas = [];
     var _loop = function(p){
       promessas.push(pdf.getPage(p).then(function(pagina){

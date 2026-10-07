@@ -800,7 +800,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 25/09/2026 · rodada 452</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 07/10/2026 · rodada 453</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -2813,7 +2813,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 // Aviso visual — nunca deixa dúvida sobre qual banco está conectado. Roda antes de qualquer
 // outra coisa, então já aparece mesmo antes do login.
-const VERSAO_HUB = '1.0.2';
+const VERSAO_HUB = '1.0.3';
 // Número da rodada rodando AGORA nesta aba, capturado do próprio texto do rodapé antes dele
 // ser trocado por "v1.0" em produção logo abaixo — é o valor que hubVerificarNovaVersao()
 // compara contra o que está publicado no servidor (rodada 427).
@@ -13639,6 +13639,7 @@ function enviarLevantamento(){
       <div id="contato-rapido-btn-registrar-wrap" style="display:flex;justify-content:flex-end;margin-top:8px">
         <button class="btn btn-sm btn-primary" onclick="salvarContatoRapidoOrc()">Registrar contato</button>
       </div>
+      <button class="btn btn-sm btn-secondary" id="contato-rapido-reanalisar" style="display:none;margin-top:8px;font-size:11px" onclick="reanalisarUltimoContatoOrc()">⚡ Reanalisar último contato salvo</button>
       <div id="contato-rapido-ia" style="display:none;margin-top:8px;border-radius:8px;padding:10px 12px;border:1px solid #d8b4fe;background:#faf5ff">
         <div style="font-size:11px;font-weight:700;margin-bottom:4px" id="contato-rapido-ia-titulo">⚡ Análise KsToR-IA</div>
         <div style="font-size:11px;line-height:1.5" id="contato-rapido-ia-texto"></div>
@@ -15512,10 +15513,7 @@ function analisarIntencaoLead(retorno, obs, contatos){
   // pedir pra IA adivinhar isso só pelo texto da conversa (causava alertas de fechamento
   // deixando passar pedidos claros de desconto quando a proposta não era citada explicitamente).
   var orcVinculadoLead = _leadAtual && _leadAtual.orcamentoVinculadoId ? (todasOrcamentosGlobal||[]).find(function(o){ return o.id===_leadAtual.orcamentoVinculadoId; }) : null;
-  var propostaJaEnviadaLead = orcVinculadoLead ? (orcVinculadoLead.propostaIds||[]).some(function(pid){
-    var p = (todasPropostasGlobal||[]).find(function(x){ return x.id===pid; });
-    return p && ['aguardando_retorno','fechada'].indexOf(p.status) >= 0;
-  }) : false;
+  var propostaJaEnviadaLead = orcTemPropostaEnviada(orcVinculadoLead);
 
   var sys = 'Você é especialista em vendas de segurança eletrônica residencial. Analise o contato e responda SOMENTE em JSON válido.\n\nFormato:\n{"temperatura":"quente|morno|frio","alerta":true|false,"titulo":"frase curta","motivo":"1 frase","sinais":["sinal"]}\n\nREGRAS:\n- O campo "propostaJaEnviada" abaixo diz se o cliente já recebeu a proposta — confie nesse campo, não tente adivinhar isso pelo texto da conversa.\n- alerta FALSE se propostaJaEnviada=false: nesse estágio é só orçamento/informação, não é fechamento\n- alerta TRUE se propostaJaEnviada=true E o cliente pediu desconto, parcelamento, quer agendar, comparou concorrente, ou deu qualquer sinal de decisão iminente\n- temperatura quente apenas quando alerta=true\n- temperatura morno para interesse sem urgencia\n- temperatura frio se sumiu ou cancelou\n- TOM dos campos "titulo" e "motivo": esse texto é só pro gestor ler internamente, o cliente nunca vê — escreva simples e descontraído, como um colega avisando rápido ("Cliente topando fechar!", "Pediu desconto, tá quase lá"), nada de tom formal/corporativo ("indicando uma decisão iminente" não, isso é forma de laudo, não de aviso rápido)\n- Responda APENAS o JSON';
   var usr = 'Lead: '+nome+'\nInteresse: '+interesses+'\nPropostaJaEnviada: '+(propostaJaEnviadaLead?'true':'false')+'\nRetorno atual: '+retorno+(obs?'\nObservação: '+obs:'')+'\nHistórico recente:\n'+historico;
@@ -18745,6 +18743,24 @@ function renderHistoricoContatosOrcamento(contatos, orcEmSet){
   }).join('');
 }
 
+// O status agregado continua disponível mesmo quando o listener de propostas ainda não carregou.
+// Nunca confundir proposta gerada (aguardando_envio) com proposta efetivamente enviada.
+function orcTemPropostaEnviada(orc){
+  if(!orc) return false;
+  if(['proposta_enviada','em_negociacao'].indexOf(orc.status) >= 0) return true;
+  return (orc.propostaIds||[]).some(function(pid){
+    var p = (todasPropostasGlobal||[]).find(function(x){ return x.id===pid; });
+    return p && (p.propostaEnviada===true || !!p.propostaEnviadaEm || ['aguardando_retorno','fechada'].indexOf(p.status) >= 0);
+  });
+}
+
+// Condições de pagamento concretas merecem aviso imediato, inclusive durante indisponibilidade
+// da IA. Não inferir fechamento de uma pergunta genérica sobre preço ou parcelamento.
+function contatoIndicaNegociacaoPagamento(obs){
+  var texto = (obs||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  return /\b(entrada|sinal)\b/.test(texto) && /\b(parcelas?|vezes|pix|pagamento)\b/.test(texto) && (/r\$\s*\d/.test(texto) || /\b\d+\s*parcelas?\b/.test(texto));
+}
+
 function analisarIntencaoOrc(obs, contatos, ids){
   ids = ids || { wrap:'orc-ia-alerta', titulo:'orc-ia-alerta-titulo', texto:'orc-ia-alerta-texto' };
   var alertaEl = document.getElementById(ids.wrap);
@@ -18765,10 +18781,25 @@ function analisarIntencaoOrc(obs, contatos, ids){
   // foi enviada — antes a IA tinha que ADIVINHAR isso só pelo texto da conversa, o que fazia
   // pedidos claros de desconto passarem batido quando não citavam a proposta explicitamente.
   // Agora isso vem calculado e explícito no prompt, tirando a adivinhação de cima da IA.
-  var propostaJaEnviada = _orcAtual ? (_orcAtual.propostaIds||[]).some(function(pid){
-    var p = (todasPropostasGlobal||[]).find(function(x){ return x.id===pid; });
-    return p && ['aguardando_retorno','fechada'].indexOf(p.status) >= 0;
-  }) : false;
+  var orcDaAnalise = _orcAtual;
+  var propostaJaEnviada = orcTemPropostaEnviada(orcDaAnalise);
+  var sinalPagamento = propostaJaEnviada && contatoIndicaNegociacaoPagamento(obs);
+  var tituloPagamento = 'Cliente negociando pagamento!';
+  var motivoPagamento = 'Cliente apresentou entrada e parcelas; acompanhe a decisão de fechamento.';
+  var notificouPagamento = !!ids.somenteConsulta;
+  if(sinalPagamento){
+    alertaEl.style.background='#fdf4ff'; alertaEl.style.borderColor='#c084fc';
+    if(tEl){ tEl.style.color='#7c3aed'; tEl.textContent='🚨 '+tituloPagamento; }
+    if(txEl){ txEl.style.color='#6d28d9'; txEl.textContent=motivoPagamento+' A IA está complementando a análise...'; }
+    if(orcDaAnalise && !ids.somenteConsulta){
+      notificouPagamento = true;
+      notificarTelegram('🚨 *'+cliente+' — '+tituloPagamento+'*\n\n'+motivoPagamento+(servico?'\n\nServiço: '+servico:''));
+      db.collection('notificacoes_sistema').add({
+        tipo:'ia_alerta', titulo:tituloPagamento, mensagem:cliente+(servico?' — '+servico:'')+': '+motivoPagamento,
+        orcamentoId:orcDaAnalise.id||'', propostaId:'', lida:false, criadoEm:firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(function(e){ console.error('[KsToR-IA/analisarIntencaoOrc] Erro ao gravar no sino:', e); });
+    }
+  }
 
   var sys = 'Você é especialista em vendas de segurança eletrônica residencial. Analise o contato e responda SOMENTE em JSON válido.\n\nFormato:\n{"temperatura":"quente|morno|frio","alerta":true|false,"titulo":"frase curta","motivo":"1 frase","sinais":["sinal"]}\n\nREGRAS:\n- O campo "propostaJaEnviada" abaixo diz se o cliente já recebeu a proposta — confie nesse campo, não tente adivinhar isso pelo texto da conversa.\n- alerta FALSE se propostaJaEnviada=false: nesse estágio é só orçamento/informação, não é fechamento\n- alerta TRUE se propostaJaEnviada=true E o cliente pediu desconto, parcelamento, quer agendar, comparou concorrente, ou deu qualquer sinal de decisão iminente\n- temperatura quente apenas quando alerta=true\n- temperatura morno para interesse sem urgencia\n- temperatura frio se sumiu ou cancelou\n- TOM dos campos "titulo" e "motivo": esse texto é só pro gestor ler internamente, o cliente nunca vê — escreva simples e descontraído, como um colega avisando rápido ("Cliente topando fechar!", "Pediu desconto, tá quase lá"), nada de tom formal/corporativo ("indicando uma decisão iminente" não, isso é forma de laudo, não de aviso rápido)\n- Responda APENAS o JSON';
   var usr = 'Cliente: '+cliente+'\nServiço: '+servico+'\nPropostaJaEnviada: '+(propostaJaEnviada?'true':'false')+'\nObservação atual: '+obs+'\nHistórico recente:\n'+historico;
@@ -18782,7 +18813,14 @@ function analisarIntencaoOrc(obs, contatos, ids){
     if(!aEl) return;
     var txt = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
     console.log('[KsToR-IA/analisarIntencaoOrc] resposta bruta da IA:', txt);
-    var res; try{ res = iaExtrairJSON(txt, 'alerta de orçamento'); }catch(e){ console.error('[KsToR-IA/analisarIntencaoOrc] Não foi possível interpretar a resposta — escondendo o alerta.', e, txt); aEl.style.display='none'; return; }
+    var res; try{ res = iaExtrairJSON(txt, 'alerta de orçamento'); }catch(e){
+      console.error('[KsToR-IA/analisarIntencaoOrc] Resposta inválida:', e, txt);
+      if(!sinalPagamento){
+        if(ttEl) ttEl.textContent='⚠️ Análise da IA indisponível';
+        if(txEl2) txEl2.textContent='O contato foi salvo. Tente analisar novamente mais tarde.';
+      } else if(txEl2) txEl2.textContent=motivoPagamento;
+      return;
+    }
     console.log('[KsToR-IA/analisarIntencaoOrc] resultado interpretado:', res);
 
     // Nota: a IA NÃO altera mais a temperatura do lead automaticamente — isso é decidido
@@ -18790,7 +18828,11 @@ function analisarIntencaoOrc(obs, contatos, ids){
     // que a sugestão da IA entre em conflito e sobrescreva o estágio 1/2/3 já definido.
     // A temperatura sugerida pela IA aqui é só informativa (exibida no texto abaixo).
 
-    var temAlerta = res.alerta===true;
+    var temAlerta = res.alerta===true || sinalPagamento;
+    if(sinalPagamento && res.alerta!==true){
+      res.titulo=tituloPagamento; res.motivo=motivoPagamento;
+      res.sinais=['Condição de pagamento apresentada'];
+    }
     console.log('[KsToR-IA/analisarIntencaoOrc] temAlerta:', temAlerta, '| _orcAtual existe:', !!_orcAtual, '| _tgChatId:', _tgChatId);
     if(!temAlerta){
       aEl.style.background='#f8fafc'; aEl.style.borderColor='var(--gray-200)';
@@ -18809,15 +18851,23 @@ function analisarIntencaoOrc(obs, contatos, ids){
     // então só quem tivesse o modal aberto no momento exato via essa informação. Dispara o mesmo
     // aviso (Telegram + sininho) que os outros gatilhos de "cliente quente" já usam, pra equipe
     // ser avisada mesmo sem estar de olho na tela.
-    if(_orcAtual){
+    if(orcDaAnalise && !notificouPagamento){
       notificarTelegram('🚨 *'+cliente+' — '+(res.titulo||'Alta probabilidade de fechamento!')+'*\n\n'+(res.motivo||'')+(servico?'\n\nServiço: '+servico:''));
       db.collection('notificacoes_sistema').add({
         tipo:'ia_alerta', titulo:res.titulo||'Alta probabilidade de fechamento!', mensagem:cliente+(servico?(' — '+servico):'')+': '+(res.motivo||''),
-        orcamentoId:_orcAtual.id||'', propostaId:'', lida:false, criadoEm:firebase.firestore.FieldValue.serverTimestamp()
+        orcamentoId:orcDaAnalise.id||'', propostaId:'', lida:false, criadoEm:firebase.firestore.FieldValue.serverTimestamp()
       }).catch(function(e){ console.error('[KsToR-IA/analisarIntencaoOrc] Erro ao gravar no sino:', e); });
     }
   })
-  .catch(function(e){ console.error('[KsToR-IA/analisarIntencaoOrc] Erro na chamada da IA:', e); var aEl=document.getElementById(ids.wrap); if(aEl) aEl.style.display='none'; });
+  .catch(function(e){
+    console.error('[KsToR-IA/analisarIntencaoOrc] Erro na chamada da IA:', e);
+    var tt=document.getElementById(ids.titulo), tx=document.getElementById(ids.texto);
+    if(sinalPagamento){ if(tx) tx.textContent=motivoPagamento; }
+    else {
+      if(tt) tt.textContent='⚠️ Análise da IA indisponível';
+      if(tx) tx.textContent='O contato foi salvo. '+(e.message||'Tente novamente mais tarde.');
+    }
+  });
 }
 
 var _contatoRapidoOrcId = null;
@@ -18844,8 +18894,20 @@ function abrirContatoRapidoOrc(orcId){
   var acoesEl = document.getElementById('contato-rapido-acoes'); if(acoesEl) acoesEl.style.display = 'none';
   var fuEl = document.getElementById('contato-rapido-followup'); if(fuEl){ fuEl.style.display = 'none'; fuEl.innerHTML = ''; }
   var btnRegEl = document.getElementById('contato-rapido-btn-registrar-wrap'); if(btnRegEl) btnRegEl.style.display = 'flex';
+  var reEl = document.getElementById('contato-rapido-reanalisar');
+  if(reEl) reEl.style.display = orc && orc.contatos && orc.contatos.length ? 'inline-flex' : 'none';
   travarFechamentoContatoRapido(false);
   abrirModal('modal-contato-rapido-orc');
+}
+
+function reanalisarUltimoContatoOrc(){
+  var orc = todasOrcamentosGlobal.find(function(o){ return o.id===_contatoRapidoOrcId; });
+  var contatos = orc && orc.contatos || [];
+  if(!contatos.length){ toast('Nenhum contato salvo para analisar.','error'); return; }
+  _orcAtual = orc;
+  analisarIntencaoOrc(contatos[contatos.length-1].obs||'', contatos, {
+    wrap:'contato-rapido-ia', titulo:'contato-rapido-ia-titulo', texto:'contato-rapido-ia-texto', somenteConsulta:true
+  });
 }
 
 function salvarContatoRapidoOrc(){
@@ -18880,6 +18942,7 @@ function salvarContatoRapidoOrc(){
     analisarIntencaoOrc(obs, contatos, { wrap:'contato-rapido-ia', titulo:'contato-rapido-ia-titulo', texto:'contato-rapido-ia-texto' });
     // Contato registrado: esconder o botão (já cumpriu seu papel) e exigir uma decisão antes de fechar
     var btnRegEl = document.getElementById('contato-rapido-btn-registrar-wrap'); if(btnRegEl) btnRegEl.style.display = 'none';
+    var reEl = document.getElementById('contato-rapido-reanalisar'); if(reEl) reEl.style.display = 'inline-flex';
     var acoesEl = document.getElementById('contato-rapido-acoes'); if(acoesEl) acoesEl.style.display = 'block';
     var fuElReset = document.getElementById('contato-rapido-followup'); if(fuElReset){ fuElReset.style.display='none'; fuElReset.innerHTML=''; }
     travarFechamentoContatoRapido(true);

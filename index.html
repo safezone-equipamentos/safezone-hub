@@ -800,7 +800,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 07/10/2026 · rodada 453</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 07/10/2026 · rodada 454</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -2813,7 +2813,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 // Aviso visual — nunca deixa dúvida sobre qual banco está conectado. Roda antes de qualquer
 // outra coisa, então já aparece mesmo antes do login.
-const VERSAO_HUB = '1.0.3';
+const VERSAO_HUB = '1.0.4';
 // Número da rodada rodando AGORA nesta aba, capturado do próprio texto do rodapé antes dele
 // ser trocado por "v1.0" em produção logo abaixo — é o valor que hubVerificarNovaVersao()
 // compara contra o que está publicado no servidor (rodada 427).
@@ -21956,20 +21956,31 @@ function gpErpRenderizarPdfEmImagens(pdfBase64){
     return Promise.all(promessas);
   });
 }
+function gpErpInterpretarResposta(data, origem){
+  if(data.error) throw new Error(data.error.message||'Erro na importação do ERP');
+  var escolha = data.choices && data.choices[0];
+  if((escolha && escolha.finish_reason==='length') || data._finish_reason==='MAX_TOKENS'){
+    throw new Error('A resposta da IA veio incompleta. Nenhum item foi aplicado. Tente um PDF com menos itens por arquivo.');
+  }
+  var raw = escolha && escolha.message && escolha.message.content || '';
+  var parsed = iaExtrairJSON(raw, origem);
+  if(!parsed || !Array.isArray(parsed.itens) || !Number.isFinite(parsed.valor_total) || !Number.isFinite(parsed.valor_servicos)){
+    throw new Error('A IA não retornou todos os campos do orçamento. Nenhum item foi aplicado. Tente novamente.');
+  }
+  return parsed;
+}
 function gpErpTentarGroqVisao(prompt, status){
   if(status){ status.textContent='✦ Gemini indisponível — tentando via Groq (visão)...'; status.style.color='#6b7280'; }
   return gpErpRenderizarPdfEmImagens(_gpErpPdfBase64).then(function(imagens){
     return fetch(AI_PROXY_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'}, // evita pre-flight — ver nota em chamarKsToRIA
-      body:JSON.stringify({ provider:'groq_visao', imagens:imagens, user:prompt })
+      body:JSON.stringify({ provider:'groq_visao', imagens:imagens, user:prompt, max_tokens:1000 })
     });
   })
   .then(function(res){ if(!res.ok) throw new Error('Erro '+res.status); return res.json(); })
   .then(function(data){
-    if(data.error) throw new Error(data.error.message||'Erro no fallback de visão');
-    var raw = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-    return iaExtrairJSON(raw, 'via Groq');
+    return gpErpInterpretarResposta(data, 'ERP via Groq');
   });
 }
 
@@ -21991,6 +22002,7 @@ function gpErpChamarGemini(){
     '- "valor_servicos" = soma de todos os subtotais da seção SERVIÇOS (0 se essa seção não existir)\n'+
     '- "valor_total" = valor total geral do orçamento (produtos + serviços)\n'+
     '- valor_unitario = float com ponto (ex: 124.90)\n- quantidade = inteiro (1,00 vira 1)\n'+
+    '- Use JSON compacto, sem indentação. Preserve todas as linhas e descrições dos produtos\n'+
     '- Escape corretamente qualquer aspas dupla que apareça dentro de "descricao" (ex: polegadas de um monitor)\n'+
     '- Ignore linhas de TOTAL/SUBTOTAL geral dentro das tabelas\n- Campos ausentes = 0 ou array vazio';
   var gpErpAbortCtrl = new AbortController();
@@ -22002,9 +22014,7 @@ function gpErpChamarGemini(){
   })
   .then(function(res){ if(!res.ok) throw new Error('Erro '+res.status); return res.json(); })
   .then(function(data){
-    if(data.error) throw new Error(data.error.message||'Erro no proxy de IA');
-    var raw = (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-    return iaExtrairJSON(raw);
+    return gpErpInterpretarResposta(data, 'ERP via Gemini');
   })
   .catch(function(e){
     clearTimeout(gpErpTimeoutId);

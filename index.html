@@ -800,7 +800,7 @@ tr.orc-row-fechou-agora td:first-child{box-shadow:inset 3px 0 0 #79B913}
           </div>
         </div>
         <div class="sidebar-sep"></div>
-        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 07/10/2026 · rodada 454</div>
+        <div id="rodape-versao" style="padding:8px 20px 4px;font-size:9px;color:var(--gray-300);text-align:center;letter-spacing:.3px">build 29/10/2026 · rodada 455</div>
         <div style="text-align:center;padding-bottom:8px">
           <button onclick="hubDiagnosticarTopoTravado()" style="background:none;border:none;color:var(--gray-300);font-size:9px;text-decoration:underline;cursor:pointer;padding:0" title="Clique aqui se o topo do HUB estiver travado, ANTES de dar F5 — junta informações técnicas pra investigar">🐛 Diagnóstico (se o topo travar)</button>
         </div>
@@ -2813,7 +2813,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 // Aviso visual — nunca deixa dúvida sobre qual banco está conectado. Roda antes de qualquer
 // outra coisa, então já aparece mesmo antes do login.
-const VERSAO_HUB = '1.0.4';
+const VERSAO_HUB = '1.0.5';
 // Número da rodada rodando AGORA nesta aba, capturado do próprio texto do rodapé antes dele
 // ser trocado por "v1.0" em produção logo abaixo — é o valor que hubVerificarNovaVersao()
 // compara contra o que está publicado no servidor (rodada 427).
@@ -7708,10 +7708,43 @@ function tgVerificarLembretes30minIniciarTimer(){
 // Roda só uma vez por dia (controlado por config/followup_1430 no Firestore, então não repete
 // mesmo se o HUB for reaberto várias vezes ou estiver aberto em mais de uma aba/computador).
 // Mesma limitação de sempre: só dispara enquanto o HUB estiver aberto no navegador.
+// O encerramento do orçamento/lead também encerra a cobrança comercial, inclusive em
+// registros antigos cujas propostas ficaram com status e datas de follow-up desatualizados.
+function propostaOrcamentoFollowup(p){
+  return (todasOrcamentosGlobal||[]).find(function(o){
+    return o.id===p.orcamentoId || o.id===p.orcamentoIdOrigemVisita || (o.propostaIds||[]).indexOf(p.id)>=0;
+  });
+}
+function propostasDoOrcamentoFollowup(orc){
+  return (todasPropostasGlobal||[]).filter(function(p){
+    return p.orcamentoId===orc.id || p.orcamentoIdOrigemVisita===orc.id || (orc.propostaIds||[]).indexOf(p.id)>=0;
+  });
+}
+function orcamentoPermiteFollowup(orc){
+  if(!orc || ['fechado','perdido'].indexOf(orc.status||'')>=0) return false;
+  var lead = (todasLeadsGlobal||[]).find(function(l){ return l.id===orc.leadId; });
+  if(lead && lead.status==='perdido') return false;
+  var props = propostasDoOrcamentoFollowup(orc);
+  if(!props.length) return true; // orçamento ainda na etapa de avaliação
+  if(props.some(function(p){ return ['fechada','perdida'].indexOf(p.status||'')<0; })) return true;
+  // Não concluir que tudo acabou enquanto ainda faltar alguma proposta no listener.
+  return (orc.propostaIds||[]).some(function(id){ return !props.some(function(p){ return p.id===id; }); });
+}
+function propostaPermiteFollowup(p){
+  if(!p || p.status!=='aguardando_retorno') return false;
+  var orc = propostaOrcamentoFollowup(p);
+  if(orc && !orcamentoPermiteFollowup(orc)) return false;
+  var lead = (todasLeadsGlobal||[]).find(function(l){
+    return l.id===p.leadId || (orc && l.id===orc.leadId) || l.propostaVinculadaId===p.id || (p.osId && l.osVinculadaId===p.osId);
+  });
+  if(lead && lead.status==='perdido') return false;
+  var os = !orc && p.osId && (todasOSGlobal||[]).find(function(o){ return o.id===p.osId; });
+  return !os || ['orcamento_perdido','cancelada'].indexOf(os.status||'')<0;
+}
 function followup1430ColetarDados(){
   var hojeStr = dataLocalYMD(new Date());
   var propostasFollowup = (todasPropostasGlobal||[]).filter(function(p){
-    return (p.status||'') === 'aguardando_retorno' && !!p.proximoFollowup && p.proximoFollowup <= hojeStr;
+    return propostaPermiteFollowup(p) && !!p.proximoFollowup && p.proximoFollowup <= hojeStr;
   });
   var posvendaFollowup = (todasPosvendaGlobal||[]).filter(function(p){
     if(p.etapaAtual === 'problema_aberto') return true;
@@ -7868,7 +7901,7 @@ function dashBriefingColetarDados(){
   var hoje = new Date(); hoje.setHours(0,0,0,0);
   var hojeStr = dataLocalYMD(hoje);
 
-  var orcsAtivos = (todasOrcamentosGlobal||[]).filter(function(o){ return ['fechado','perdido'].indexOf(o.status||'')<0; });
+  var orcsAtivos = (todasOrcamentosGlobal||[]).filter(orcamentoPermiteFollowup);
   var followupVencido = orcsAtivos.filter(function(o){ return o.proximoFollowup && o.proximoFollowup <= hojeStr; });
   var visitasHoje = (todasOSGlobal||[]).filter(function(o){ return o.data === hojeStr && o.status !== 'cancelada'; });
   // OS que pedem ação (sem técnico/data, ou material de instalação ainda não separado) — mesma
@@ -8002,7 +8035,8 @@ function dashBriefingGerar(manual){
           if(manual) toast('Briefing atualizado. Configure o Telegram para receber o resumo.', 'info');
           return;
         }
-        return notificarTelegram(dashBriefingTextoDetalhado(dados)).then(function(res){
+        // A IA pode demorar: uma perda registrada durante a geração não deve ir ao Telegram.
+        return notificarTelegram(dashBriefingTextoDetalhado(dashBriefingColetarDados())).then(function(res){
           if(!res || !res.ok){
             if(manual) toast('Briefing atualizado, mas o Telegram não confirmou o envio.', 'error');
             return;
@@ -13884,7 +13918,7 @@ function enviarLevantamento(){
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary btn-sm" data-fecha="modal-cancelar-orcamento">Voltar</button>
-      <button class="btn btn-sm" style="background:var(--red);color:#fff;font-size:11px" onclick="confirmarCancelamentoOrcamento()">❌ Confirmar cancelamento</button>
+      <button class="btn btn-sm" style="background:var(--red);color:#fff;font-size:11px" id="cancel-orc-confirmar" onclick="confirmarCancelamentoOrcamento()">❌ Confirmar cancelamento</button>
     </div>
   </div>
 </div>
@@ -14266,6 +14300,7 @@ function salvarDetalheProposta(){
   }
   var btn=document.getElementById('btn-salvar-prop-det'); if(btn){btn.disabled=true;btn.textContent='Salvando...';}
   var followup=(document.getElementById('prop-followup-data')||{}).value||'';
+  if(novoStatus==='fechada' || novoStatus==='perdida') followup='';
   var valorFechado=novoStatus==='fechada'?parseBRL((document.getElementById('prop-valor-fechado')||{}).value||'0'):0;
   var updates={status:novoStatus,contatos:_propAtual.contatos||[],proximoFollowup:followup};
   // Qualquer avanço de status além de "aguardando_envio" implica que a proposta já foi enviada
@@ -14278,9 +14313,10 @@ function salvarDetalheProposta(){
   // Comparação por string 'YYYY-MM-DD' (mesmo padrão usado em taskEhHoje/taskEhAtrasada) — evita o bug de
   // comparar Date com hora meio-dia (T12:00:00) contra um "hoje" normalizado à meia-noite, que fazia
   // Math.round arredondar errado e disparar o alerta sempre 1 dia atrasado.
-  if(followup&&novoStatus!=='fechada'&&novoStatus!=='perdida'){ if(followup === dataLocalYMD(new Date())){ notificarTelegram('🔔 *Follow-up hoje!*\nCliente: '+(_propAtual.osCliente||'')+'\nOS #'+(_propAtual.osNumero||'')); } }
+  if(followup && propostaPermiteFollowup(Object.assign({}, _propAtual, {status:novoStatus}))){ if(followup === dataLocalYMD(new Date())){ notificarTelegram('🔔 *Follow-up hoje!*\nCliente: '+(_propAtual.osCliente||'')+'\nOS #'+(_propAtual.osNumero||'')); } }
   db.collection('propostas').doc(_propAtual.id).update(updates)
     .then(function(){
+      Object.assign(_propAtual, updates);
       toast('Proposta atualizada!','success');
       fecharModal('modal-proposta-det');
       if(btn){btn.disabled=false;btn.textContent='Salvar alterações';}
@@ -14300,6 +14336,7 @@ function salvarDetalheProposta(){
           leadUpd.status = 'perdido';
           leadUpd.justificativaPerda = 'Proposta marcada como perdida';
         }
+        if(novoStatus==='fechada' || novoStatus==='perdida') leadUpd.proximoFollowup='';
         // Sincronizar follow-up
         if(followup && novoStatus !== 'fechada' && novoStatus !== 'perdida'){
           leadUpd.proximoFollowup = followup;
@@ -15655,7 +15692,7 @@ function salvarDetalheLead(){
     }
   }
 
-  var followup = (document.getElementById('lead-det-followup')||{}).value||'';
+  var followup = novoStatus==='perdido' ? '' : ((document.getElementById('lead-det-followup')||{}).value||'');
   var updates = {
     status: novoStatus,
     temperatura: tempNova,
@@ -15671,7 +15708,7 @@ function salvarDetalheLead(){
   // é somente leitura (badge controlado pelo sistema).
   if(novoStatus === 'perdido' && _leadAtual.propostaVinculadaId){
     db.collection('propostas').doc(_leadAtual.propostaVinculadaId).update({
-      status: 'perdida'
+      status: 'perdida', proximoFollowup: ''
     }).catch(function(e){ console.error('[erro silencioso #61]', e); });
   }
   var btn = document.getElementById('btn-salvar-lead-det'); if(btn){btn.disabled=true;btn.textContent='Salvando...';}
@@ -16166,6 +16203,7 @@ function recomputarStatusOrcamento(orcId){
       var motivoUltimaPerdida = props.filter(function(p){ return p.status==='perdida'; }).map(function(p){ return p.motivoPerda; }).filter(Boolean).pop() || 'outro';
       db.collection('leads').doc(orc.leadId).update({
         status: 'perdido', temperatura: 'frio', _tempManual: true,
+        proximoFollowup: '',
         motivoPerda: motivoUltimaPerdida, perdidoEm: firebase.firestore.FieldValue.serverTimestamp()
       }).catch(function(e){ console.error('[erro silencioso #67]', e); });
       gravarEventoLead(orc.leadId, 'status', 'Mudou para "Perdido" — todas as propostas do orçamento foram perdidas');
@@ -16175,6 +16213,7 @@ function recomputarStatusOrcamento(orcId){
         todasLeadsGlobal[lIdxRec].status = 'perdido';
         todasLeadsGlobal[lIdxRec].temperatura = 'frio';
         todasLeadsGlobal[lIdxRec]._tempManual = true;
+        todasLeadsGlobal[lIdxRec].proximoFollowup = '';
       }
       if(typeof renderLeads === 'function') renderLeads();
     }
@@ -16561,9 +16600,9 @@ function confirmarFechamentoProposta(){
       var altProp = todasPropostasGlobal.find(function(p){ return p.id===altId; });
       if(!altProp) return;
       db.collection('propostas').doc(altId).update({
-        status:'perdida', motivoPerda:'Alternativa fechada', perdidaEm: firebase.firestore.FieldValue.serverTimestamp()
+        status:'perdida', proximoFollowup:'', motivoPerda:'Alternativa fechada', perdidaEm: firebase.firestore.FieldValue.serverTimestamp()
       }).catch(function(e){ console.error('[erro silencioso #78]', e); });
-      altProp.status = 'perdida'; altProp.motivoPerda = 'Alternativa fechada';
+      altProp.status = 'perdida'; altProp.proximoFollowup = ''; altProp.motivoPerda = 'Alternativa fechada';
       gravarEventoOrc(orc.id, 'proposta_perdida_auto',
         'Proposta '+(altProp.osNumero||'')+(altProp.marca?' ('+altProp.marca+')':'')+' perdida automaticamente — alternativa '+servicoFechado+' foi fechada');
     });
@@ -16626,9 +16665,10 @@ function confirmarPerdaProposta(){
   if(!motivo){ toastCampo('Selecione o motivo da perda.', 'perder-prop-motivo-sel'); return; }
   var motivoLabelsHist = {preco:'Preço',concorrencia:'Concorrência',timing:'Timing',sem_retorno:'Sem retorno',produto_indisponivel:'Produto indisponível',desistiu_projeto:'Desistiu do projeto',orcamento_excluido:'Orçamento excluído',outro:'Outro'};
   db.collection('propostas').doc(_perderPropId).update({
-    status: 'perdida', motivoPerda: motivo, justificativaPerda: obs
+    status: 'perdida', proximoFollowup: '', motivoPerda: motivo, justificativaPerda: obs,
+    perdidaEm: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function(){
-    prop.status = 'perdida'; prop.motivoPerda = motivo; prop.justificativaPerda = obs;
+    prop.status = 'perdida'; prop.proximoFollowup = ''; prop.motivoPerda = motivo; prop.justificativaPerda = obs;
     if(orc){ gravarEventoOrc(orc.id, 'perdido', 'Proposta de '+(prop.tipoServico||'')+' perdida — '+(motivoLabelsHist[motivo]||motivo)+(obs?' — '+obs:'')); cancelarVisitaAvaliacaoSePendente(orc, 'Proposta de '+(prop.tipoServico||'')+' perdida'); }
     toast('Proposta marcada como perdida.','success');
     fecharModal('modal-perder-proposta');
@@ -18029,47 +18069,69 @@ function abrirModalCancelarOrcamento(orcId){
   if(obsEl)    obsEl.value    = '';
   abrirModal('modal-cancelar-orcamento');
 }
+var _cancelOrcSalvando = false;
 function confirmarCancelamentoOrcamento(){
+  if(_cancelOrcSalvando) return;
   var motivo = (document.getElementById('cancel-orc-motivo')||{}).value || '';
-  var obs    = ((document.getElementById('cancel-orc-obs')||{}).value||'').trim();
+  var obs = ((document.getElementById('cancel-orc-obs')||{}).value||'').trim();
   if(!motivo){ toastCampo('Selecione o motivo do cancelamento.', 'cancel-orc-motivo'); return; }
-  if(!_cancelOrcId) return;
-  var orc = todasOrcamentosGlobal.find(function(o){ return o.id === _cancelOrcId; });
+  var orcId = _cancelOrcId;
+  if(!orcId) return;
+  var orc = todasOrcamentosGlobal.find(function(o){ return o.id===orcId; });
   if(!orc) return;
-  // Atualizar orçamento
-  db.collection('orcamentos').doc(_cancelOrcId).update({
-    status: 'perdido',
-    motivoPerda: motivo,
-    justificativaPerda: obs,
-    perdidoEm: firebase.firestore.FieldValue.serverTimestamp()
-  }).catch(function(e){ console.error('[erro silencioso #85]', e); });
-  orc.status = 'perdido'; orc.motivoPerda = motivo; orc.justificativaPerda = obs;
-  // Lead vinculado → perdido + frio
-  if(orc.leadId){
-    db.collection('leads').doc(orc.leadId).update({
-      status: 'perdido',
-      motivoPerda: motivo,
-      justificativaPerda: obs,
-      temperatura: 'frio',
-      _tempManual: true,
-      perdidoEm: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function(e){ console.error('[erro silencioso #86]', e); });
-    gravarEventoLead(orc.leadId, 'status', 'Mudou para "Perdido" — orçamento cancelado ('+(MOTIVO_PERDA_LABELS_HIST[motivo]||motivo)+')');
-    gravarEventoLead(orc.leadId, 'temperatura', 'Temperatura mudou para ❄️ Frio (lead perdido)');
-    var lIdx = todasLeadsGlobal.findIndex(function(l){ return l.id === orc.leadId; });
-    if(lIdx >= 0){
-      todasLeadsGlobal[lIdx].status = 'perdido';
-      todasLeadsGlobal[lIdx].temperatura = 'frio';
-      todasLeadsGlobal[lIdx]._tempManual = true;
-    }
+  var props = propostasDoOrcamentoFollowup(orc);
+  if((orc.propostaIds||[]).some(function(id){ return !props.some(function(p){ return p.id===id; }); })){
+    toast('Aguarde o carregamento das propostas antes de cancelar o orçamento.','error'); return;
   }
-  gravarEventoOrc(_cancelOrcId, 'perdido', 'Orçamento cancelado — '+({preco:'Preço',concorrencia:'Concorrência',timing:'Timing',sem_retorno:'Sem retorno',produto_indisponivel:'Produto indisponível',desistiu_projeto:'Desistiu do projeto',orcamento_excluido:'Orçamento excluído',outro:'Outro'}[motivo]||motivo), obs);
-  fecharModal('modal-cancelar-orcamento');
-  fecharModal('modal-orcamento-det');
-  toast('Orçamento cancelado e lead marcado como perdido.','error');
-  _cancelOrcId = null;
-  renderLeads();
-  if(typeof renderOrcamentos === 'function') renderOrcamentos();
+  var btn = document.getElementById('cancel-orc-confirmar');
+  _cancelOrcSalvando = true;
+  if(btn){ btn.disabled=true; btn.textContent='Cancelando...'; }
+  var updatesOrc = {
+    status:'perdido', proximoFollowup:'', motivoPerda:motivo,
+    justificativaPerda:obs, perdidoEm:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  var updatesLead = {
+    status:'perdido', proximoFollowup:'', motivoPerda:motivo,
+    justificativaPerda:obs, temperatura:'frio', _tempManual:true,
+    perdidoEm:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  // Uma única gravação: só confirma o cancelamento se orçamento, lead e propostas
+  // forem atualizados juntos. Propostas já fechadas mantêm seu resultado comercial.
+  var batch = db.batch();
+  batch.update(db.collection('orcamentos').doc(orcId), updatesOrc);
+  if(orc.leadId) batch.update(db.collection('leads').doc(orc.leadId), updatesLead);
+  var propostasAtualizadas = [];
+  props.forEach(function(p){
+    var updates = {proximoFollowup:''};
+    if(['fechada','perdida'].indexOf(p.status||'')<0){
+      updates.status='perdida'; updates.motivoPerda=motivo;
+      updates.justificativaPerda=obs; updates.perdidaEm=firebase.firestore.FieldValue.serverTimestamp();
+    }
+    batch.update(db.collection('propostas').doc(p.id), updates);
+    propostasAtualizadas.push({proposta:p, updates:updates});
+  });
+  return batch.commit().then(function(){
+    Object.assign(orc, updatesOrc, {perdidoEm:new Date()});
+    propostasAtualizadas.forEach(function(item){ Object.assign(item.proposta, item.updates); });
+    if(orc.leadId){
+      var lead = todasLeadsGlobal.find(function(l){ return l.id===orc.leadId; });
+      if(lead) Object.assign(lead, updatesLead, {perdidoEm:new Date()});
+      gravarEventoLead(orc.leadId, 'status', 'Mudou para "Perdido" — orçamento cancelado ('+(MOTIVO_PERDA_LABELS_HIST[motivo]||motivo)+')');
+      gravarEventoLead(orc.leadId, 'temperatura', 'Temperatura mudou para ❄️ Frio (lead perdido)');
+    }
+    gravarEventoOrc(orcId, 'perdido', 'Orçamento cancelado — '+(MOTIVO_PERDA_LABELS_HIST[motivo]||motivo), obs);
+    fecharModal('modal-cancelar-orcamento');
+    fecharModal('modal-orcamento-det');
+    toast('Orçamento cancelado. Follow-ups encerrados.','success');
+    if(_cancelOrcId===orcId) _cancelOrcId=null;
+    renderLeads();
+    if(typeof renderOrcamentos==='function') renderOrcamentos();
+  }).catch(function(e){
+    toast('Não foi possível cancelar o orçamento: '+e.message,'error');
+  }).finally(function(){
+    _cancelOrcSalvando=false;
+    if(btn){ btn.disabled=false; btn.textContent='❌ Confirmar cancelamento'; }
+  });
 }
 
 // ── Helper: gravar evento no histórico do orçamento ──
@@ -18523,9 +18585,9 @@ function escolherTipoNovaProposta(tipo){
     var propAtual = todasPropostasGlobal.find(function(p){ return p.id===propAtualId; });
     if(propAtual){
       db.collection('propostas').doc(propAtualId).update({
-        status:'perdida', motivoPerda:'Substituída por nova proposta', perdidaEm: firebase.firestore.FieldValue.serverTimestamp()
+        status:'perdida', proximoFollowup:'', motivoPerda:'Substituída por nova proposta', perdidaEm: firebase.firestore.FieldValue.serverTimestamp()
       }).catch(function(e){ console.error('[erro silencioso #88]', e); });
-      propAtual.status = 'perdida'; propAtual.motivoPerda = 'Substituída por nova proposta';
+      propAtual.status = 'perdida'; propAtual.proximoFollowup = ''; propAtual.motivoPerda = 'Substituída por nova proposta';
       gravarEventoOrc(orcId, 'perdido', 'Proposta de '+servico+(propAtual.marca?' ('+propAtual.marca+')':'')+' marcada como perdida — substituída por nova proposta');
       recomputarStatusOrcamento(orcId); recomputarFollowupOrcamento(orcId);
     }
